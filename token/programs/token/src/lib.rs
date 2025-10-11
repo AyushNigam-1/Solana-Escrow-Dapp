@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
 
 // The Program ID must be updated in Anchor.toml after running anchor build once
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("BBh9yqqreatuAtzcaJEGKaPSZjjk5CYwEVF2ActQwCEk");
 
 // Define the PDA seed constant for generating the Escrow account address
 const ESCROW_PDA_SEED: &[u8] = b"escrow";
@@ -170,6 +170,35 @@ pub mod escrow {
 }
 
 // ----------------------------------------------------------------
+// STATE
+// ----------------------------------------------------------------
+
+/// Defines the data stored in the Escrow State PDA account.
+#[account]
+pub struct EscrowState {
+    // The Pubkey of the user who initiated the escrow (Seller)
+    pub initializer_key: Pubkey,
+
+    // The Mint of the token the initializer is offering (Token A)
+    pub initializer_deposit_token_mint: Pubkey,
+
+    // The Mint of the token the initializer expects to receive (Token B)
+    pub taker_expected_token_mint: Pubkey,
+
+    // The amount of Token A that the initializer deposited
+    pub initializer_amount: u64,
+
+    // The amount of Token B that the taker is expected to deposit
+    pub taker_expected_amount: u64,
+
+    // The token account where the initializer expects to receive Token B
+    pub initializer_receive_token_account: Pubkey,
+
+    // The canonical bump seed for the EscrowState PDA
+    pub bump: u8,
+}
+
+// ----------------------------------------------------------------
 // ACCOUNT STRUCTS
 // ----------------------------------------------------------------
 
@@ -298,35 +327,6 @@ pub struct Cancel<'info> {
 
     /// Required standard program
     pub token_program: Program<'info, Token>,
-}
-
-// ----------------------------------------------------------------
-// STATE
-// ----------------------------------------------------------------
-
-/// Defines the data stored in the Escrow State PDA account.
-#[account]
-pub struct EscrowState {
-    // The Pubkey of the user who initiated the escrow (Seller)
-    pub initializer_key: Pubkey,
-
-    // The Mint of the token the initializer is offering (Token A)
-    pub initializer_deposit_token_mint: Pubkey,
-
-    // The Mint of the token the initializer expects to receive (Token B)
-    pub taker_expected_token_mint: Pubkey,
-
-    // The amount of Token A that the initializer deposited
-    pub initializer_amount: u64,
-
-    // The amount of Token B that the taker is expected to deposit
-    pub taker_expected_amount: u64,
-
-    // The token account where the initializer expects to receive Token B
-    pub initializer_receive_token_account: Pubkey,
-
-    // The canonical bump seed for the EscrowState PDA
-    pub bump: u8,
 }
 
 // ----------------------------------------------------------------
