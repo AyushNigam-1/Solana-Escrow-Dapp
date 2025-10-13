@@ -3,10 +3,12 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"; // still ne
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useState } from "react";
 import { fetchUserTokenAccounts } from "./utils/token"
+import { useRouter } from "next/router";
+import { cookies } from "next/headers";
 function App() {
   const { publicKey, connected } = useWallet();
   const [accounts, setAccounts] = useState()
-
+  const router = useRouter()
   useEffect(() => {
     if (publicKey) {
       const fetchAccounts = async () => {
@@ -20,7 +22,10 @@ function App() {
         }
       };
       fetchAccounts();
+      cookies.set("user", publicKey)
+      router.push("/dashboard")
     }
+
     // Dependency array: Rerun the effect whenever the publicKey or connection object changes.
   }, [publicKey, connected]);
 

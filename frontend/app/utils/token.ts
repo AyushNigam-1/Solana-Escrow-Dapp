@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { getTokenMetadata  , TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getTokenMetadata, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 // Define the Program ID for Token-2022 (Token Extensions)
 // NOTE: You should confirm this constant is also in your ContractInterface.ts
@@ -12,7 +12,7 @@ export interface FullTokenMetadata {
     name: string;
     symbol: string;
     uri: string;
-    
+
     // Off-Chain Fields (from the decoded URI)
     description: string;
     image: string; // The URL to the token logo
@@ -25,7 +25,7 @@ function decodeDataUri(dataUri: string): any {
     }
 
     const base64Content = dataUri.split(',')[1];
-    
+
     // Use the browser's native base64 decoding function
     // For Node.js/Server-side rendering, you might need Buffer.from(base64Content, 'base64').toString('utf8');
     const jsonString = atob(base64Content);
@@ -40,7 +40,7 @@ function decodeDataUri(dataUri: string): any {
 export async function fetchTokenMetadata(
     mintAddress: PublicKey,
 ): Promise<FullTokenMetadata> {
-    
+
     // 1. Fetch on-chain metadata (name, symbol, uri)
     const onChainMetadata = await getTokenMetadata(
         connection,
@@ -48,7 +48,7 @@ export async function fetchTokenMetadata(
         "confirmed",
         TOKEN_2022_PROGRAM_ID
     );
-
+    console.log(mintAddress)
     if (!onChainMetadata) {
         throw new Error(`Metadata not found for mint: ${mintAddress.toBase58()}`);
     }
@@ -71,16 +71,16 @@ export interface UserTokenAccount {
     amount: number;     // The balance held in the account (as a whole number)
     uiAmount: number;   // The balance held in the account (with decimals applied)
     decimals: number;   // The decimals of the associated mint
-    name : string;
-    symbol:string;
-    description:string;
-image:string
+    name: string;
+    symbol: string;
+    description: string;
+    image: string
 }
 
 export async function fetchUserTokenAccounts(
     owner: PublicKey,
 ): Promise<UserTokenAccount[]> {
-    
+
     // Use getParsedTokenAccountsByOwner for cleaner data, supporting both programs
     const [token2022Accounts, legacyTokenAccounts] = await Promise.all([
         connection.getParsedTokenAccountsByOwner(owner, { programId: TOKEN_2022_PROGRAM_ID }),
@@ -88,14 +88,15 @@ export async function fetchUserTokenAccounts(
     ]);
 
     const rawAccounts = [...token2022Accounts.value, ...legacyTokenAccounts.value];
-    
+
     const userAccounts: UserTokenAccount[] = [];
 
     for (const { pubkey, account } of rawAccounts) {
         // Data structure for parsed token accounts is: account.data.parsed.info
         const info = account.data.parsed.info;
-        const metadata = fetchTokenMetadata(info.mint)
-console.log(metadata)
+        const metadata = await fetchTokenMetadata(new PublicKey(info.mint))
+        // console.log("metadata", metadata)
+        // console.log(info.mint.toBase58())
         const uiAmount = info.tokenAmount.uiAmount;
         const amount = info.tokenAmount.amount;
         const decimals = info.tokenAmount.decimals;
@@ -109,12 +110,12 @@ console.log(metadata)
                 uiAmount,
                 decimals,
                 name: metadata.name,
-        symbol: metadata.symbol,
-        description: metadata.description || "",
-        image: metadata.image || "" // Use a placeholder if image is missing
+                symbol: metadata.symbol,
+                description: metadata.description || "",
+                image: metadata.image || "" // Use a placeholder if image is missing
             });
         }
     }
-    
+
     return userAccounts;
 }
