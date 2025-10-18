@@ -1,13 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { fetchUserTokenAccounts, UserTokenAccount } from "../utils/token"
-
-interface UseUserTokenAccountsHook {
-    accounts: UserTokenAccount[];
-    loading: boolean;
-    error: string | null;
-    refresh: () => void;
-}
+import { fetchUserTokenAccounts } from "../utils/token"
+import { UserTokenAccount, UseUserTokenAccountsHook } from '../types';
 
 export function useUserTokenAccounts(
     ownerPublicKey: PublicKey | null

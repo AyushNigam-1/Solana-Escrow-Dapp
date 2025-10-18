@@ -1,12 +1,55 @@
 import * as anchor from '@coral-xyz/anchor';
-import { PublicKey, Keypair, Connection } from '@solana/web3.js';
-import { useProgram } from '../../hooks/useProgram'; // Renamed import for clarity, assuming this is the context hook
-
-// Define the PDA seed constant used in your Rust program
+import {
+    PublicKey, Transaction
+} from '@solana/web3.js';
+import {
+    getAssociatedTokenAddress,
+    createAssociatedTokenAccountInstruction,
+    getAccount,
+    TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import { useProgram } from '../../hooks/useProgram';
 
 export const useEscrowActions = () => {
-    // Assuming useEscrowProgram (the context hook) returns your Escrow Program instance
-    const { program, wallet, PROGRAM_ID , PDA_SEEDS } = useProgram(); 
+    const { program, wallet, PROGRAM_ID, PDA_SEEDS, connection, sendTransaction, publicKey } = useProgram();
+
+    const ensureATA = async (
+        mint: PublicKey
+    ): Promise<PublicKey> => {
+        const owner = publicKey!;
+
+        const ata = await getAssociatedTokenAddress(
+            mint,
+            owner,
+            false,
+            TOKEN_PROGRAM_ID
+        );
+
+        try {
+            await getAccount(connection, ata);
+            console.log("✅ ATA already exists:", ata.toBase58());
+            return ata;
+        } catch (err) {
+            console.log("⚠️ ATA not found. Creating new ATA...");
+            const ix = createAssociatedTokenAccountInstruction(
+                owner, // payer
+                ata,   // associated token account
+                owner, // owner
+                mint
+            );
+
+            const tx = new Transaction().add(ix);
+            const signature = await sendTransaction(tx, connection, {
+                skipPreflight: false,
+                preflightCommitment: "confirmed",
+            });
+
+            await connection.confirmTransaction(signature, "confirmed");
+
+            console.log("✅ Created new ATA:", ata.toBase58());
+            return ata;
+        }
+    };
 
     const getEscrowStatePDA = (initializerKey: PublicKey) => {
         const [escrowStatePDA] = PublicKey.findProgramAddressSync(
@@ -19,8 +62,6 @@ export const useEscrowActions = () => {
     const initializeEscrow = async (
         initializerAmount: number,
         takerExpectedAmount: number,
-        initializerDepositTokenAccount: PublicKey,
-        initializerReceiveTokenAccount: PublicKey,
         initializerDepositMint: PublicKey,
         takerExpectedMint: PublicKey
     ) => {
@@ -28,12 +69,13 @@ export const useEscrowActions = () => {
             throw new Error("Wallet not connected or program not loaded.");
         }
 
-        const initializerKey = wallet.publicKey;
+        const initializerKey = publicKey!;
         // 1. Calculate the Escrow State PDA address
         const escrowStatePDA = getEscrowStatePDA(initializerKey);
-
+        const initializerDepositTokenAccount = await ensureATA(initializerDepositMint);
+        const initializerReceiveTokenAccount = await ensureATA(takerExpectedMint);
         const vaultAccount = anchor.web3.Keypair.generate();
-        
+
         // Convert amounts to Anchor's internal BN (BigNumber) format
         const initializerAmountBN = new anchor.BN(initializerAmount);
         const takerExpectedAmountBN = new anchor.BN(takerExpectedAmount);

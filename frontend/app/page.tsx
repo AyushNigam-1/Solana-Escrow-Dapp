@@ -1,24 +1,21 @@
 "use client"
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"; // still need this import for the button
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useEffect, useState } from "react";
-import { fetchUserTokenAccounts } from "./utils/token"
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-// import { cookies } from "next/headers";
-import Cookies from "js-cookie";
+import Cookies from "js-cookie"
+
 function App() {
+
   const { publicKey, connected } = useWallet();
-  const [accounts, setAccounts] = useState()
   const router = useRouter()
+
   useEffect(() => {
     if (publicKey) {
-      Cookies.set("user",String(publicKey))
-      // cookies.set("user", publicKey)
+      Cookies.set("user", String(publicKey))
       router.push("/dashboard")
     }
   }, [publicKey, connected]);
-
-  console.log(connected)
 
   return (
     <>
@@ -50,7 +47,6 @@ function App() {
                   </ul>
                 )}
               </div> */}
-
           </div>
         ) : (
           <p className="text-center font-semibold text-lg text-red-400">

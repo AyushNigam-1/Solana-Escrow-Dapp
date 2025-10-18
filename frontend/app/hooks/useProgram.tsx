@@ -1,52 +1,38 @@
-import { useMemo, useState } from 'react';
-import * as anchor from '@coral-xyz/anchor';
-import { useAnchorWallet, useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey } from '@solana/web3.js';
-import type { Escrow } from "../target/types/escrow"
-import idl from "../target/idl/escrow.json";
-
-// Replace with your deployed program's address
-const PROGRAM_ID = new PublicKey("o64cpAStBpuDDUeoiNuVZM8gJTZraaLbRnTxvXwfgVd");
-
-const PDA_SEEDS = [new TextEncoder().encode("escrow")];
-
+import { useWallet, useConnection, type AnchorWallet } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
+import { useMemo } from "react";
 
 export const useProgram = () => {
     const { connection } = useConnection();
-    const wallet = useAnchorWallet();
+    const { wallet, publicKey, sendTransaction } = useWallet(); // ✅ useWallet instead of useAnchorWallet()
+
+    const PROGRAM_ID = new PublicKey("o64cpAStBpuDDUeoiNuVZM8gJTZraaLbRnTxvXwfgVd");
+    const PDA_SEEDS = [new TextEncoder().encode("escrow")];
 
     const [escrowAccountKey] = PublicKey.findProgramAddressSync(
         PDA_SEEDS,
         PROGRAM_ID
     );
 
-    // 2 & 3. Create the Anchor Provider
     const provider = useMemo(() => {
-        if (!wallet) return null;
-        return new anchor.AnchorProvider(
-            connection,
-            wallet,
-            anchor.AnchorProvider.defaultOptions(),
-        );
-    }, [connection, wallet]);
+        if (!wallet || !publicKey) return null;
+        return new anchor.AnchorProvider(connection, wallet.adapter as any, anchor.AnchorProvider.defaultOptions());
+    }, [connection, wallet, publicKey]);
 
-    // 4. Instantiate the Program
     const program = useMemo(() => {
         if (!provider) return null;
-
-        return new anchor.Program<Escrow>(
-            idl as anchor.Idl,
-            provider,
-        );
+        return new anchor.Program(idl as anchor.Idl, provider);
     }, [provider]);
 
     return {
         program,
         wallet,
+        publicKey,
         connection,
+        sendTransaction, // ✅ add this
         escrowAccountKey,
         PDA_SEEDS,
         PROGRAM_ID
     };
-
-}
+};

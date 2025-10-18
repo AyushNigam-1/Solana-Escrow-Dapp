@@ -1,31 +1,19 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { getTokenMetadata, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import axios from "axios"
+import { FullTokenMetadata, OffChainMetadata, UserTokenAccount } from "../types";
 
 export const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
-export interface FullTokenMetadata {
-    name: string;
-    symbol: string;
-    uri: string;
-    description: string;
-    image: string;
-}
-interface OffChainMetadata {
-    name: string;
-    symbol: string;
-    description: string;
-    image: string;
-}
-function decodeDataUri(dataUri: string): any {
-    if (!dataUri || !dataUri.startsWith('data:application/json;base64,')) {
-        throw new Error("Invalid Data URI format.");
-    }
-    const base64Content = dataUri.split(',')[1];
-    const jsonString = atob(base64Content);
-    return JSON.parse(jsonString);
-}
+// function decodeDataUri(dataUri: string): any {
+//     if (!dataUri || !dataUri.startsWith('data:application/json;base64,')) {
+//         throw new Error("Invalid Data URI format.");
+//     }
+//     const base64Content = dataUri.split(',')[1];
+//     const jsonString = atob(base64Content);
+//     return JSON.parse(jsonString);
+// }
 
 export async function fetchTokenMetadata(
     mintAddress: PublicKey,
@@ -64,17 +52,7 @@ export async function fetchTokenMetadata(
     };
 }
 
-export interface UserTokenAccount {
-    address: PublicKey; // The address of the Token Account (not the mint)
-    mint: PublicKey;    // The Mint address (Token A or Token B)
-    amount: number;     // The balance held in the account (as a whole number)
-    uiAmount: number;   // The balance held in the account (with decimals applied)
-    decimals: number;   // The decimals of the associated mint
-    name: string;
-    symbol: string;
-    description: string;
-    image: string
-}
+
 
 export async function fetchUserTokenAccounts(
     owner: PublicKey,
@@ -97,7 +75,7 @@ export async function fetchUserTokenAccounts(
         const uiAmount = info.tokenAmount.uiAmount;
         const amount = info.tokenAmount.amount;
         const decimals = info.tokenAmount.decimals;
-console.log("mint",info.mint,info.owner ,uiAmount)
+        console.log("mint",info.mint,info.owner ,uiAmount)
         // Only include accounts with a positive balance and valid mint/owner
         if (uiAmount > 0 && info.mint && info.owner) {
             userAccounts.push({
