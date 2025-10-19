@@ -4,8 +4,10 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie"
+import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 
 function App() {
+  const network = WalletAdapterNetwork.Devnet;
 
   const { publicKey, connected } = useWallet();
   const router = useRouter()

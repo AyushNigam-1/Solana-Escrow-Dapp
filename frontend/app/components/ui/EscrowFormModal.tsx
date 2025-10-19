@@ -13,7 +13,7 @@ import { PublicKey } from '@solana/web3.js';
 interface EscrowFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    initializerDepositMint: String;
+    initializerDepositMint: string;
     initializerDepositTokenAccount: String
     // In a real app, you would pass these from the context:
     // initializeEscrow: typeof mockInitializeEscrow; 
@@ -24,22 +24,19 @@ interface EscrowFormModalProps {
 interface FormState {
     initializerAmount: string;
     takerExpectedAmount: string;
-    initializerDepositTokenAccount: string;
-    initializerReceiveTokenAccount: string;
     initializerDepositMint: string;
     takerExpectedMint: string;
 }
 
 const initialFormState: FormState = {
-    initializerAmount: '10000',
-    takerExpectedAmount: '10',
-    initializerDepositTokenAccount: 'ATACNta22B...',
-    initializerReceiveTokenAccount: 'ATAG5h5G52...',
-    initializerDepositMint: 'MintA4g5d4...',
-    takerExpectedMint: 'MintB7d4s5...',
+    initializerAmount: '0',
+    takerExpectedAmount: '0',
+    initializerDepositMint: '',
+    takerExpectedMint: '',
 };
 
 export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClose, initializerDepositMint, initializerDepositTokenAccount }) => {
+    const contractActions = useEscrowActions();
     const [formData, setFormData] = useState<FormState>(initialFormState);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -58,7 +55,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
 
         try {
             // 1. Validation and Conversion
-            const requiredFields = ['initializerAmount', 'takerExpectedAmount', 'initializerDepositTokenAccount', 'initializerReceiveTokenAccount', , 'takerExpectedMint'];
+            const requiredFields = ['initializerAmount', 'takerExpectedAmount', 'takerExpectedMint'];
             for (const field of requiredFields) {
                 if (!formData[field as keyof FormState]) throw new Error(`${field} is required.`);
             }
@@ -73,13 +70,11 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
             // --- CRITICAL STEP: CONVERT STRING ADDRESSES TO PUBLIC KEYS ---
             const depositMintPK = new PublicKey(initializerDepositMint);
             const expectedMintPK = new PublicKey(formData.takerExpectedMint);
-            const depositATA_PK = new PublicKey(initializerDepositTokenAccount);
-            const receiveATA_PK = new PublicKey(formData.initializerReceiveTokenAccount);
 
             // 2. Call the real Escrow function with correctly typed arguments
             console.log("Calling initializeEscrow...");
 
-            const { escrowStatePDA } = await useEscrowActions().initializeEscrow(
+            const { escrowStatePDA } = await contractActions.initializeEscrow(
                 initAmount,
                 takerAmount,
                 depositMintPK,
@@ -138,7 +133,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                 <hr className="border-t border-gray-600" />
                 <form onSubmit={handleSubmit} className=" space-y-6">
                     {/* <h3 className="text-lg font-semibold  pb-2 ">Token A (Deposit)</h3> */}
-                    <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={formData.initializerDepositMint} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled={isLoading} />
+                    <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={initializerDepositMint} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled />
                     <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isLoading} />
                     {/* <InputGroup label="Deposit Token Account (ATA)" name="initializerDepositTokenAccount" value={formData.initializerDepositTokenAccount} onChange={handleChange} placeholder="Base58 Address (Token A ATA)" disabled={isLoading} /> */}
 

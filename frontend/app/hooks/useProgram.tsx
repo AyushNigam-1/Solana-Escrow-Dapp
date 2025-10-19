@@ -2,12 +2,13 @@ import { useWallet, useConnection, type AnchorWallet } from "@solana/wallet-adap
 import { PublicKey } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { useMemo } from "react";
+import idl from "../target/idl/escrow.json";
 
 export const useProgram = () => {
     const { connection } = useConnection();
     const { wallet, publicKey, sendTransaction } = useWallet(); // ✅ useWallet instead of useAnchorWallet()
 
-    const PROGRAM_ID = new PublicKey("o64cpAStBpuDDUeoiNuVZM8gJTZraaLbRnTxvXwfgVd");
+    const PROGRAM_ID = new PublicKey("ExNt6Lv4WpfqRP9QT5MZeXMHRNGTTiMsBdXykMuczTU4");
     const PDA_SEEDS = [new TextEncoder().encode("escrow")];
 
     const [escrowAccountKey] = PublicKey.findProgramAddressSync(

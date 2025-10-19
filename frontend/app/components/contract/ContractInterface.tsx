@@ -6,50 +6,67 @@ import {
     getAssociatedTokenAddress,
     createAssociatedTokenAccountInstruction,
     getAccount,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
     TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID
 } from "@solana/spl-token";
 import { useProgram } from '../../hooks/useProgram';
 
 export const useEscrowActions = () => {
     const { program, wallet, PROGRAM_ID, PDA_SEEDS, connection, sendTransaction, publicKey } = useProgram();
 
-    const ensureATA = async (
-        mint: PublicKey
-    ): Promise<PublicKey> => {
-        const owner = publicKey!;
+    // import {
+    //     getAssociatedTokenAddress,
+    //     createAssociatedTokenAccountInstruction,
+    //     getAccount,
+    //     TOKEN_PROGRAM_ID
+    // } from "@solana/spl-token";
+    // import { Transaction, PublicKey } from "@solana/web3.js";
+
+    const ensureATA = async (mint: PublicKey) => {
+        if (!publicKey) throw new Error("Wallet not connected");
 
         const ata = await getAssociatedTokenAddress(
             mint,
-            owner,
+            publicKey,
             false,
-            TOKEN_PROGRAM_ID
+            TOKEN_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID
         );
 
         try {
             await getAccount(connection, ata);
-            console.log("✅ ATA already exists:", ata.toBase58());
+            console.log("✅ ATA exists:", ata.toBase58());
             return ata;
-        } catch (err) {
-            console.log("⚠️ ATA not found. Creating new ATA...");
+        } catch (error) {
+            console.log("⚠️ ATA not found, creating...");
+
             const ix = createAssociatedTokenAccountInstruction(
-                owner, // payer
-                ata,   // associated token account
-                owner, // owner
-                mint
+                publicKey, // payer (your wallet)
+                ata,       // associated token account address
+                publicKey, // owner (who will own the ATA)
+                mint,      // mint address
+                TOKEN_PROGRAM_ID,
+                ASSOCIATED_TOKEN_PROGRAM_ID
             );
 
             const tx = new Transaction().add(ix);
-            const signature = await sendTransaction(tx, connection, {
-                skipPreflight: false,
-                preflightCommitment: "confirmed",
-            });
+            tx.feePayer = publicKey;
+            tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
+            console.log("Simulating...");
+            const sim = await connection.simulateTransaction(tx);
+            console.log("Simulation:", sim.value);
+
+            const signature = await sendTransaction(tx, connection); // no extra object
             await connection.confirmTransaction(signature, "confirmed");
 
-            console.log("✅ Created new ATA:", ata.toBase58());
+            console.log("✅ Created ATA:", ata.toBase58());
             return ata;
         }
     };
+
+
 
     const getEscrowStatePDA = (initializerKey: PublicKey) => {
         const [escrowStatePDA] = PublicKey.findProgramAddressSync(

@@ -1,9 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { getTokenMetadata, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import axios from "axios"
+import { getTokenMetadata, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { FullTokenMetadata, OffChainMetadata, UserTokenAccount } from "../types";
 
-export const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
 // function decodeDataUri(dataUri: string): any {
@@ -17,15 +15,16 @@ const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
 export async function fetchTokenMetadata(
     mintAddress: PublicKey,
+    programId: PublicKey,
 ): Promise<FullTokenMetadata> {
 
     const onChainMetadata = await getTokenMetadata(
         connection,
         mintAddress,
         "confirmed",
-        TOKEN_2022_PROGRAM_ID
+        programId
     );
-    
+
     if (!onChainMetadata) {
         throw new Error(`Metadata not found for mint: ${mintAddress.toBase58()}`);
     }
@@ -52,7 +51,18 @@ export async function fetchTokenMetadata(
     };
 }
 
-
+function getProgramIdFromIdentifier(programIdentifier: string): PublicKey | null {
+    switch (programIdentifier) {
+        case "spl-token-2022":
+            return TOKEN_2022_PROGRAM_ID;
+        case "spl-token":
+            return TOKEN_PROGRAM_ID;
+        default:
+            // Handle custom program ID case if necessary, or return null
+            console.warn(`Unknown token program identifier: ${programIdentifier}`);
+            return null;
+    }
+}
 
 export async function fetchUserTokenAccounts(
     owner: PublicKey,
@@ -65,22 +75,25 @@ export async function fetchUserTokenAccounts(
     ]);
 
     const rawAccounts = [...token2022Accounts.value, ...legacyTokenAccounts.value];
-
+    console.log("rawAccounts", rawAccounts)
     const userAccounts: UserTokenAccount[] = [];
 
     for (const { pubkey, account } of rawAccounts) {
         // Data structure for parsed token accounts is: account.data.parsed.info
         const info = account.data.parsed.info;
-        const metadata = await fetchTokenMetadata(new PublicKey(info.mint))
+        const programIdentifier = account.data.program; // <-- EXTRACT THE PROGRAM IDENTIFIER HERE
+        const programId = getProgramIdFromIdentifier(programIdentifier);
+
+        const metadata = await fetchTokenMetadata(new PublicKey(info.mint), programId!)
         const uiAmount = info.tokenAmount.uiAmount;
         const amount = info.tokenAmount.amount;
         const decimals = info.tokenAmount.decimals;
-        console.log("mint",info.mint,info.owner ,uiAmount)
+        console.log("mint", info.mint, info.owner, uiAmount)
         // Only include accounts with a positive balance and valid mint/owner
         if (uiAmount > 0 && info.mint && info.owner) {
             userAccounts.push({
-                address: pubkey,
-                mint: new PublicKey(info.mint),
+                tokenAddress: String(pubkey),
+                mint: info.mint,
                 amount: parseInt(amount, 10),
                 uiAmount,
                 decimals,
@@ -91,6 +104,6 @@ export async function fetchUserTokenAccounts(
             });
         }
     }
-console.log("inside fetch acc" , userAccounts)
+    console.log("inside fetch acc", userAccounts)
     return userAccounts;
 }
