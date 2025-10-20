@@ -1,11 +1,25 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, CloseAccount, Mint, TokenAccount, Transfer};
+
+// Import the official program IDs for dynamic checking
+use spl_token::ID as TOKEN_PROGRAM_ID;
+use spl_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 // The Program ID must be updated in Anchor.toml after running anchor build once
-declare_id!("BBh9yqqreatuAtzcaJEGKaPSZjjk5CYwEVF2ActQwCEk");
+declare_id!("ExNt6Lv4WpfqRP9QT5MZeXMHRNGTTiMsBdZykMuczTU4");
 
 // Define the PDA seed constant for generating the Escrow account address
 const ESCROW_PDA_SEED: &[u8] = b"escrow";
+
+// Helper function to check if the provided Pubkey is a valid token program ID
+// This function returns Result<()>, so it MUST be called within the program functions.
+fn check_token_program_id(program_id: &Pubkey) -> Result<()> {
+    if program_id.eq(&TOKEN_PROGRAM_ID) || program_id.eq(&TOKEN_2022_PROGRAM_ID) {
+        Ok(())
+    } else {
+        Err(ErrorCode::InvalidTokenProgram.into())
+    }
+}
 
 #[program]
 pub mod escrow {
@@ -18,6 +32,10 @@ pub mod escrow {
         initializer_amount: u64,
         taker_expected_amount: u64,
     ) -> Result<()> {
+        // FIX for E0308: Move validation check into the instruction body
+        // The instruction handler expects a Result, allowing us to use '?'.
+        check_token_program_id(ctx.accounts.token_program.key)?;
+
         // 1. Set the Escrow State data
         let escrow_account = &mut ctx.accounts.escrow_state;
         escrow_account.initializer_key = *ctx.accounts.initializer.key;
@@ -48,6 +66,7 @@ pub mod escrow {
             to: ctx.accounts.vault_account.to_account_info(),
             authority: ctx.accounts.initializer.to_account_info(), // Initializer signs this transfer
         };
+        // Pass the generic AccountInfo for the token program
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
 
@@ -57,9 +76,10 @@ pub mod escrow {
     }
 
     /// Allows the Taker (buyer) to exchange their Token B for the Initializer's Token A.
-    /// This instruction validates the expected amounts, performs two transfers, and closes
-    /// both the vault and the escrow state accounts.
     pub fn exchange(ctx: Context<Exchange>) -> Result<()> {
+        // FIX for E0308: Move validation check into the instruction body
+        check_token_program_id(ctx.accounts.token_program.key)?;
+
         let escrow_state = &ctx.accounts.escrow_state;
 
         // Constraint check: Ensure the taker sends the exact amount requested
@@ -128,6 +148,9 @@ pub mod escrow {
 
     /// Allows the Initializer (Seller) to cancel the escrow and retrieve their Token A.
     pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
+        // FIX for E0308: Move validation check into the instruction body
+        check_token_program_id(ctx.accounts.token_program.key)?;
+
         let escrow_state = &ctx.accounts.escrow_state;
 
         // --- CPI 1: Return Token A from the vault to the Initializer ---
@@ -252,7 +275,11 @@ pub struct Initialize<'info> {
 
     /// Required standard programs and sysvars
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+
+    /// The Token Program (either Standard SPL Token or Token-2022)
+    /// CHECK: The verification is now done in the `initialize` instruction logic.
+    pub token_program: AccountInfo<'info>,
+    
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -292,12 +319,12 @@ pub struct Exchange<'info> {
     pub vault_account: Account<'info, TokenAccount>,
 
     /// The original Initializer (Seller) account. Only used for the `has_one` constraint check.
-    /// This account is NOT mutable.
     /// CHECK: This field is used only for has_one constraint checking in Exchange context.
     pub initializer_key: AccountInfo<'info>,
 
-    /// Required standard programs
-    pub token_program: Program<'info, Token>,
+    /// Required standard program
+    /// CHECK: The verification is now done in the `exchange` instruction logic.
+    pub token_program: AccountInfo<'info>,
 }
 
 /// Accounts for the `cancel` instruction
@@ -326,7 +353,8 @@ pub struct Cancel<'info> {
     pub escrow_state: Account<'info, EscrowState>,
 
     /// Required standard program
-    pub token_program: Program<'info, Token>,
+    /// CHECK: The verification is now done in the `cancel` instruction logic.
+    pub token_program: AccountInfo<'info>,
 }
 
 // ----------------------------------------------------------------
@@ -345,4 +373,6 @@ pub enum ErrorCode {
     InvalidAccount,
     #[msg("The taker did not send the exact amount of expected tokens.")]
     InvalidExchangeAmount,
+    #[msg("The token program provided is neither the Standard SPL Token Program nor the Token-2022 Program.")]
+    InvalidTokenProgram,
 }

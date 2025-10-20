@@ -14,7 +14,6 @@ interface EscrowFormModalProps {
     isOpen: boolean;
     onClose: () => void;
     initializerDepositMint: string;
-    initializerDepositTokenAccount: String
     // In a real app, you would pass these from the context:
     // initializeEscrow: typeof mockInitializeEscrow; 
     // wallet: useWallet;
@@ -24,18 +23,18 @@ interface EscrowFormModalProps {
 interface FormState {
     initializerAmount: string;
     takerExpectedAmount: string;
-    initializerDepositMint: string;
+    initializerDepositMint?: string;
     takerExpectedMint: string;
 }
 
 const initialFormState: FormState = {
-    initializerAmount: '0',
-    takerExpectedAmount: '0',
+    initializerAmount: '',
+    takerExpectedAmount: '',
     initializerDepositMint: '',
     takerExpectedMint: '',
 };
 
-export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClose, initializerDepositMint, initializerDepositTokenAccount }) => {
+export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClose, initializerDepositMint }) => {
     const contractActions = useEscrowActions();
     const [formData, setFormData] = useState<FormState>(initialFormState);
     const [isLoading, setIsLoading] = useState(false);
@@ -74,14 +73,16 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
             // 2. Call the real Escrow function with correctly typed arguments
             console.log("Calling initializeEscrow...");
 
-            const { escrowStatePDA } = await contractActions.initializeEscrow(
+            // const { escrowStatePDA } = await contractActions.initializeEscrow(
+            const lol = await contractActions.initializeEscrow(
+
                 initAmount,
                 takerAmount,
                 depositMintPK,
                 expectedMintPK
             );
 
-            setSuccessPDA(escrowStatePDA.toBase58());
+            // setSuccessPDA(escrowStatePDA.toBase58());
 
         } catch (err) {
             console.error("Submission Error:", err);
