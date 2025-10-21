@@ -51,7 +51,7 @@ const page = () => {
           )
         })
       }
-      <EscrowFormModal isOpen={isOpen} onClose={() => setOpen(false)} initializerDepositTokenAccount={tokenAccount} initializerDepositMint={mintAddress} />
+      <EscrowFormModal isOpen={isOpen} onClose={() => setOpen(false)} initializerDepositMint={mintAddress} />
     </div>
   )
 }

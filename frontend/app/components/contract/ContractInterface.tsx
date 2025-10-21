@@ -16,12 +16,13 @@ import {
     TOKEN_2022_PROGRAM_ID,
     getMint,
     AccountLayout,
-    createInitializeAccountInstruction
+    createInitializeAccountInstruction,
+    getAssociatedTokenAddressSync
 } from "@solana/spl-token";
 import { useProgram } from '../../hooks/useProgram';
 
 export const useEscrowActions = () => {
-    const { program, wallet, PROGRAM_ID, PDA_SEEDS, connection, sendTransaction, publicKey } = useProgram()
+    const { program, PROGRAM_ID, wallet, PDA_SEEDS, connection, sendTransaction, publicKey } = useProgram()
 
     const ensureATA = async (mint: PublicKey): Promise<PublicKey> => {
         const owner = publicKey!; // Connected wallet PK
@@ -131,10 +132,19 @@ export const useEscrowActions = () => {
     };
 
 
+    const generateNonce = (): number => {
+        // You may want a more robust nonce generator, but this is fine for a demo
+        return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+    };
 
-    const getEscrowStatePDA = (initializerKey: PublicKey) => {
+    // PDA_SEEDS should be defined to match your Rust program definition (e.g. Buffer.from("escrow"))
+    const getEscrowStatePDA = (initializerKey: PublicKey, nonce: number) => {
         const [escrowStatePDA] = PublicKey.findProgramAddressSync(
-            [...PDA_SEEDS, initializerKey.toBuffer()],
+            [
+                ...PDA_SEEDS,
+                initializerKey.toBuffer(),
+                Buffer.from(new anchor.BN(nonce).toArray("le", 8)), // nonce as u64 little-endian
+            ],
             PROGRAM_ID
         );
         return escrowStatePDA;
@@ -180,106 +190,50 @@ export const useEscrowActions = () => {
         const depositTokenProgramId = await getMintProgramId(initializerDepositMint);
         const receiveTokenProgramId = await getMintProgramId(takerExpectedMint);
 
-        // Ensure both mints use the same token program (common for escrows; adjust if your program allows mixed)
         if (!depositTokenProgramId.equals(receiveTokenProgramId)) {
-            throw new Error('Mints must use the same token program (both legacy SPL or both Token-2022).');
+            throw new Error(
+                "Mints must use the same token program (both legacy SPL or both Token-2022)."
+            );
         }
 
-        const tokenProgramToUse = depositTokenProgramId;  // Dynamic: TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID
+        const tokenProgramToUse = depositTokenProgramId;
 
-        console.log('Using Token Program ID:', tokenProgramToUse.toBase58());  // Debug log
+        // --- STEP 2: Generate nonce and compute PDA ---
+        const nonce = generateNonce();
+        const escrowStatePDA = getEscrowStatePDA(initializerKey, nonce);
 
-        // 1. Calculate the Escrow State PDA address
-        const escrowStatePDA = getEscrowStatePDA(initializerKey);
-
-        // Ensure ATAs exist (update ensureATA to accept/use tokenProgramToUse if not already)
+        // Ensure ATAs exist
         const initializerDepositTokenAccount = await ensureATA(initializerDepositMint);
         const initializerReceiveTokenAccount = await ensureATA(takerExpectedMint);
-
-        // *** The Vault Account Keypair ***
-        const vaultAccount = Keypair.generate();
 
         // Convert amounts to Anchor's internal BN (BigNumber) format
         const initializerAmountBN = new anchor.BN(initializerAmount);
         const takerExpectedAmountBN = new anchor.BN(takerExpectedAmount);
-
-        // --- 2. Create the Vault Pre-Instruction ---
-        // Use dynamic tokenProgramToUse for vault creation
-        const vaultRent = await connection.getMinimumBalanceForRentExemption(
-            AccountLayout.span
+        const vaultAccountPDA = getAssociatedTokenAddressSync(
+            initializerDepositMint,       // mint
+            escrowStatePDA,               // owner (escrow PDA)
+            true,                         // allowOwnerOffCurve (MUST be true for PDAs)
+            tokenProgramToUse             // token program id (SPL or Token-2022)
         );
-
-        const createVaultIx = SystemProgram.createAccount({
-            fromPubkey: initializerKey,
-            newAccountPubkey: vaultAccount.publicKey,
-            lamports: vaultRent,
-            space: AccountLayout.span,
-            programId: tokenProgramToUse,  // Dynamic
-        });
-        const initializeVaultIx = createInitializeAccountInstruction(
-            vaultAccount.publicKey,         // The new token account
-            initializerDepositMint,         // Mint (deposit mint for vault)
-            escrowStatePDA,                 // Owner of the vault (escrow PDA, since escrow controls it)
-            tokenProgramToUse               // Dynamic Token program
-        );
-        // const { blockhash } = await connection.getLatestBlockhash();
-        // console.log("Simulating Initialize Escrow Transaction...");
-        // const mainIx = await program.methods
-        //     .initialize(initializerAmountBN, takerExpectedAmountBN)
-        //     .accounts({
-        //         initializer: initializerKey,
-        //         initializerDepositTokenAccount: initializerDepositTokenAccount,
-        //         initializerDepositTokenMint: initializerDepositMint,
-        //         takerExpectedTokenMint: takerExpectedMint,
-        //         initializerReceiveTokenAccount: initializerReceiveTokenAccount,
-        //         escrowState: escrowStatePDA,
-        //         vaultAccount: vaultAccount.publicKey,
-        //         systemProgram: SystemProgram.programId,
-        //         tokenProgram: tokenProgramToUse,
-        //         rent: SYSVAR_RENT_PUBKEY,
-        //     })
-        //     .instruction();  // ← Gets the raw Instruction (no tx building)
-
-        // // Combine pre-instructions with main ix
-        // const allInstructions = [
-        //     createVaultIx,
-        //     initializeVaultIx,
-        //     mainIx,
-        // ];
-        // const { blockhash } = await connection.getLatestBlockhash('confirmed');
-        // // Build VersionedTransaction message
-        // const messageV0 = new TransactionMessage({
-        //     payerKey: initializerKey,  // Fee payer
-        //     recentBlockhash: blockhash,
-        //     instructions: allInstructions,
-        // }).compileToV0Message();
-
-        // const txToSim = new VersionedTransaction(messageV0);
-
-        // // Simulate FIRST to catch errors early
-        // const sim = await connection.simulateTransaction(txToSim, { commitment: 'confirmed' });
-        // console.log('Simulation Result:', sim.value);
-        // if (sim.value.err) {
-        //     console.error('Sim Error Details:', sim.value.err);
-        //     console.error('Sim Logs:', sim.value.logs?.join('\n') || 'No logs');
-        //     throw new Error(`Simulation failed: ${JSON.stringify(sim.value.err)}`);
-        // }
-        // console.log('✅ Simulation passed! Proceeding to RPC...');
+        console.log("Initializing Escrow Transaction (using dynamic Token Program ID)...");
+        console.log("Initializer:", initializerKey.toBase58());
+        console.log("Nonce:", nonce);
+        console.log("Initializer Deposit Mint:", initializerDepositMint.toBase58());
+        console.log("Taker Expected Mint:", takerExpectedMint.toBase58());
+        console.log("Initializer Deposit Token Account:", initializerDepositTokenAccount.toBase58());
+        console.log("Initializer Receive Token Account:", initializerReceiveTokenAccount.toBase58());
+        console.log("Escrow State PDA:", escrowStatePDA.toBase58());
+        console.log("Initializer Amount (BN):", initializerAmountBN.toString());
+        console.log("Taker Expected Amount (BN):", takerExpectedAmountBN.toString());
         try {
-            console.log("Initializing Escrow Transaction (using dynamic Token Program ID)...");
-            console.log("Initializer:", initializerKey.toBase58());
-            console.log("Initializer Deposit Mint:", initializerDepositMint.toBase58());
-            console.log("Taker Expected Mint:", takerExpectedMint.toBase58());
-            console.log("Initializer Deposit Token Account:", initializerDepositTokenAccount.toBase58());
-            console.log("Initializer Receive Token Account:", initializerReceiveTokenAccount.toBase58());
-            console.log("Escrow State PDA:", escrowStatePDA.toBase58());
-            console.log("Vault Account:", vaultAccount.publicKey.toBase58());
-            console.log("Initializer Amount (BN):", initializerAmountBN.toString());
-            console.log("Taker Expected Amount (BN):", takerExpectedAmountBN.toString());
-            const txSignature = await program.methods
+            console.log("Initializing Escrow Transaction...");
+            // ... your existing logs ...
+
+            const ix = await program.methods
                 .initialize(
                     initializerAmountBN,
-                    takerExpectedAmountBN
+                    takerExpectedAmountBN,
+                    new anchor.BN(nonce)
                 )
                 .accounts({
                     initializer: initializerKey,
@@ -288,30 +242,75 @@ export const useEscrowActions = () => {
                     takerExpectedTokenMint: takerExpectedMint,
                     initializerReceiveTokenAccount: initializerReceiveTokenAccount,
                     escrowState: escrowStatePDA,
-                    vaultAccount: vaultAccount.publicKey,
+                    vaultAccount: vaultAccountPDA,  // Derived ATA
                     systemProgram: SystemProgram.programId,
-                    // Dynamic Token Program ID
                     tokenProgram: tokenProgramToUse,
                     rent: SYSVAR_RENT_PUBKEY,
                 })
-                .preInstructions([
-                    createVaultIx,
-                    initializeVaultIx
-                ])
-                .signers([vaultAccount])
-                .rpc();
+                .instruction();  // Raw ix (no tx)
 
+            // ← FIXED: Fetch blockhash with lastValidBlockHeight for V0
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
+            // ← UPDATED: Compile to VersionedTransaction (V0 style, like ATA example)
+            const messageV0 = new TransactionMessage({
+                payerKey: initializerKey,  // Explicit fee payer/signer
+                recentBlockhash: blockhash,
+                instructions: [ix],  // Main ix (no preInstructions in this snippet)
+            }).compileToV0Message();
+
+            const tx = new VersionedTransaction(messageV0);
+
+            // ← UPDATED: Simulate FIRST to catch errors early (like ATA example)
+            const sim = await connection.simulateTransaction(tx, { commitment: 'confirmed' });
+            console.log('Simulation Result:', sim);
+            if (sim.value.err) {
+                console.error('Sim Error Details:', sim.value.err);
+                console.error('Sim Logs:', sim.value.logs?.join('\n') || 'No logs');
+                throw new Error(`Simulation failed: ${JSON.stringify(sim.value.err)}`);
+            }
+            console.log('✅ Simulation passed! Proceeding to send...');
+
+            // ← FIXED: Sign with wallet (ensures initializer signed)
+            // const signedTx = await (wallet as any).signTransaction(tx);
+            // ← UPDATED: Send with options (like ATA example)
+            const txSignature = await sendTransaction(tx, connection, {
+                skipPreflight: false,
+                preflightCommitment: 'confirmed',
+                maxRetries: 3,
+            });
+
+            // // ← UPDATED: Confirm with V0 format (signature + blockhash + lastValidBlockHeight)
+            await connection.confirmTransaction(
+                {
+                    signature: txSignature,
+                    blockhash,
+                    lastValidBlockHeight
+                },
+                'confirmed'
+            );
+
+            console.log("✅ Escrow Initialized! Sig:", txSignature);
             return { tx: txSignature, escrowStatePDA };
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error initializing escrow:", error);
-            // Enhanced logging for on-chain errors
             if (error.logs) {
-                console.error('Program Logs:', error.logs);
+                console.error("Program Logs:", error.logs);
             }
+            // ← NEW: Signer debug
+            // console.error('Signer Debug:', {
+            //     initializerKey: initializerKey.toBase58(),
+            //     feePayer: tx.feePayer?.toBase58(),
+            //     walletPK: publicKey.toBase58(),
+            //     connected: wallet.connected,
+            // });
             throw new Error("Failed to initialize escrow. Check console for details.");
         }
-    };
 
+    };
     return { initializeEscrow, getEscrowStatePDA };
-};
+}
+
+// 6p4btTU4ACWJpqT55t9ccmfFruoPJzb1fy7cBSCtaqvo
+// qsKv7R4yhPanCgBcgLmH9gBcnWTbw2ANLoMvTZD3JTi

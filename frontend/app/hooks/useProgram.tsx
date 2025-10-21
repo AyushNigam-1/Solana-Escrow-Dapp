@@ -8,7 +8,7 @@ export const useProgram = () => {
     const { connection } = useConnection();
     const { wallet, publicKey, sendTransaction } = useWallet(); // ✅ useWallet instead of useAnchorWallet()
 
-    const PROGRAM_ID = new PublicKey("ExNt6Lv4WpfqRP9QT5MZeXMHRNGTTiMsBdXykMuczTU4");
+    const PROGRAM_ID = new PublicKey(idl.address);
     const PDA_SEEDS = [new TextEncoder().encode("escrow")];
 
     const [escrowAccountKey] = PublicKey.findProgramAddressSync(

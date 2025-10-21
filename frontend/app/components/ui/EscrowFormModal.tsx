@@ -72,7 +72,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
 
             // 2. Call the real Escrow function with correctly typed arguments
             console.log("Calling initializeEscrow...");
-
+            // console.log(contractActions.())
             // const { escrowStatePDA } = await contractActions.initializeEscrow(
             const lol = await contractActions.initializeEscrow(
 
