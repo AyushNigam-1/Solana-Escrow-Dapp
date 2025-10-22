@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, CloseAccount, Mint, TokenAccount, Transfer};
+use anchor_spl::token_interface::{self, CloseAccount, Mint, TokenAccount, Transfer, TokenInterface};  // ← Key: token_interface
 
 // Import the official program IDs for dynamic checking
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use spl_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 // The Program ID must be updated in Anchor.toml after running anchor build once
-declare_id!("ExNt6Lv4WpfqRP9QT5MZeXMHRNGTTiMsBdZykMuczTU4");
+declare_id!("ExNt6Lv4WpfqRP9QT5MZeXMHRNGTTiMsBdXykMuczTU4");
 
 // Define the PDA seed constant for generating the Escrow account address
 const ESCROW_PDA_SEED: &[u8] = b"escrow";
@@ -70,7 +70,7 @@ pub mod escrow {
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
 
-        token::transfer(cpi_context, initializer_amount)?;
+        token_interface::transfer(cpi_context, initializer_amount)?;  // ← Dynamic transfer
 
         Ok(())
     }
@@ -99,7 +99,7 @@ pub mod escrow {
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_context_taker_transfer = CpiContext::new(cpi_program, cpi_accounts_taker_transfer);
 
-        token::transfer(
+        token_interface::transfer(  // ← Dynamic transfer
             cpi_context_taker_transfer,
             escrow_state.taker_expected_amount,
         )?;
@@ -125,7 +125,7 @@ pub mod escrow {
             signer_seeds,
         );
 
-        token::transfer(
+        token_interface::transfer(  // ← Dynamic transfer
             cpi_context_initializer_transfer,
             escrow_state.initializer_amount,
         )?;
@@ -140,7 +140,7 @@ pub mod escrow {
         let cpi_context_close =
             CpiContext::new_with_signer(cpi_program, cpi_accounts_close, signer_seeds);
 
-        token::close_account(cpi_context_close)?;
+        token_interface::close_account(cpi_context_close)?;  // ← Dynamic close
 
         // The escrow_state account is closed via the #[account(close = taker)] constraint
         Ok(())
@@ -173,7 +173,7 @@ pub mod escrow {
         let cpi_context_transfer =
             CpiContext::new_with_signer(cpi_program, cpi_accounts_transfer, signer_seeds);
 
-        token::transfer(cpi_context_transfer, ctx.accounts.vault_account.amount)?;
+        token_interface::transfer(cpi_context_transfer, ctx.accounts.vault_account.amount)?;  // ← Dynamic transfer
 
         // --- CPI 2: Close the PDA-owned Vault Account ---
         let cpi_accounts_close = CloseAccount {
@@ -185,7 +185,7 @@ pub mod escrow {
         let cpi_context_close =
             CpiContext::new_with_signer(cpi_program, cpi_accounts_close, signer_seeds);
 
-        token::close_account(cpi_context_close)?;
+        token_interface::close_account(cpi_context_close)?;  // ← Dynamic close
 
         // The escrow_state account is closed via the #[account(close = initializer)] constraint
         Ok(())
@@ -239,18 +239,18 @@ pub struct Initialize<'info> {
     /// The token account belonging to the initializer that holds Token A (the token being offered).
     /// Initializer's tokens will be transferred from here.
     #[account(mut, constraint = initializer_deposit_token_account.amount >= initializer_amount @ErrorCode::InsufficientFunds)]
-    pub initializer_deposit_token_account: Account<'info, TokenAccount>,
+    pub initializer_deposit_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// The Mint account for Token A (the token being offered). Used for cross-checking.
-    pub initializer_deposit_token_mint: Account<'info, Mint>,
+    pub initializer_deposit_token_mint: InterfaceAccount<'info, Mint>,  // ← Dynamic: InterfaceAccount
 
     /// The Mint account for Token B (the token the seller expects in return). Used for cross-checking.
-    pub taker_expected_token_mint: Account<'info, Mint>,
+    pub taker_expected_token_mint: InterfaceAccount<'info, Mint>,  // ← Dynamic: InterfaceAccount
 
     /// The Initializer's account where they will receive the Token B if the trade is completed.
     /// This account must already exist.
     #[account(mut, constraint = initializer_receive_token_account.owner == initializer.key() @ErrorCode::InvalidOwner)]
-    pub initializer_receive_token_account: Account<'info, TokenAccount>,
+    pub initializer_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// The Escrow State PDA account. Stores the details of the trade.
     #[account(
@@ -271,15 +271,14 @@ pub struct Initialize<'info> {
         token::authority = escrow_state, // The EscrowState PDA is the authority of the vault
         payer = initializer,
     )]
-    pub vault_account: Account<'info, TokenAccount>,
+    pub vault_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// Required standard programs and sysvars
     pub system_program: Program<'info, System>,
 
     /// The Token Program (either Standard SPL Token or Token-2022)
-    /// CHECK: The verification is now done in the `initialize` instruction logic.
-    pub token_program: AccountInfo<'info>,
-    
+    pub token_program: Interface<'info, TokenInterface>,  // ← Dynamic: Interface
+
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -293,16 +292,16 @@ pub struct Exchange<'info> {
     /// The Taker's token account that holds Token B (the token being offered).
     /// Taker's tokens will be transferred from here.
     #[account(mut, constraint = taker_deposit_token_account.mint == escrow_state.taker_expected_token_mint @ErrorCode::InvalidMint)]
-    pub taker_deposit_token_account: Account<'info, TokenAccount>,
+    pub taker_deposit_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// The Taker's token account where they will receive Token A (the token being bought).
     #[account(mut, constraint = taker_receive_token_account.mint == escrow_state.initializer_deposit_token_mint @ErrorCode::InvalidMint)]
-    pub taker_receive_token_account: Account<'info, TokenAccount>,
+    pub taker_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// The Initializer's token account where they receive the Taker's Token B.
     /// Constraint ensures it matches the address saved in the escrow state.
     #[account(mut, constraint = initializer_receive_token_account.key() == escrow_state.initializer_receive_token_account @ErrorCode::InvalidAccount)]
-    pub initializer_receive_token_account: Account<'info, TokenAccount>,
+    pub initializer_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// The Escrow State PDA account. Check bump seed for security and close it after trade.
     #[account(
@@ -316,15 +315,14 @@ pub struct Exchange<'info> {
 
     /// The PDA-owned token account (Vault) holding the deposited Token A.
     #[account(mut, token::authority = escrow_state)]
-    pub vault_account: Account<'info, TokenAccount>,
+    pub vault_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// The original Initializer (Seller) account. Only used for the `has_one` constraint check.
     /// CHECK: This field is used only for has_one constraint checking in Exchange context.
     pub initializer_key: AccountInfo<'info>,
 
     /// Required standard program
-    /// CHECK: The verification is now done in the `exchange` instruction logic.
-    pub token_program: AccountInfo<'info>,
+    pub token_program: Interface<'info, TokenInterface>,  // ← Dynamic: Interface
 }
 
 /// Accounts for the `cancel` instruction
@@ -336,12 +334,12 @@ pub struct Cancel<'info> {
 
     /// The Initializer's token account where the refunded Token A is returned.
     #[account(mut, constraint = initializer_deposit_token_account.owner == initializer.key() @ErrorCode::InvalidOwner)]
-    pub initializer_deposit_token_account: Account<'info, TokenAccount>,
+    pub initializer_deposit_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// The PDA-owned token account (Vault) holding the deposited Token A.
     /// The authority is the escrow state account.
     #[account(mut, token::authority = escrow_state)]
-    pub vault_account: Account<'info, TokenAccount>,
+    pub vault_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
 
     /// The Escrow State PDA account. Check bump seed for security and close it.
     #[account(
@@ -353,8 +351,7 @@ pub struct Cancel<'info> {
     pub escrow_state: Account<'info, EscrowState>,
 
     /// Required standard program
-    /// CHECK: The verification is now done in the `cancel` instruction logic.
-    pub token_program: AccountInfo<'info>,
+    pub token_program: Interface<'info, TokenInterface>,  // ← Dynamic: Interface
 }
 
 // ----------------------------------------------------------------

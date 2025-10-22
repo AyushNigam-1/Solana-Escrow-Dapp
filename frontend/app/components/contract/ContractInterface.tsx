@@ -1,9 +1,11 @@
 import * as anchor from '@coral-xyz/anchor';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
 import {
     Keypair,
     PublicKey,
     SystemProgram,
     SYSVAR_RENT_PUBKEY,
+    Transaction,
     TransactionMessage,
     VersionedTransaction
 } from '@solana/web3.js';
@@ -22,7 +24,7 @@ import {
 import { useProgram } from '../../hooks/useProgram';
 
 export const useEscrowActions = () => {
-    const { program, PROGRAM_ID, wallet, PDA_SEEDS, connection, sendTransaction, publicKey } = useProgram()
+    const { program, PROGRAM_ID, wallet, PDA_SEEDS, connection, sendTransaction, publicKey, anchorWallet } = useProgram()
 
     const ensureATA = async (mint: PublicKey): Promise<PublicKey> => {
         const owner = publicKey!; // Connected wallet PK
@@ -184,7 +186,7 @@ export const useEscrowActions = () => {
             throw new Error("Wallet not connected or program not loaded.");
         }
 
-        const initializerKey = publicKey;
+        const initializerKey = anchorWallet?.publicKey!;
 
         // --- STEP 1: DYNAMIC TOKEN PROGRAM DETECTION (NO HARDCODED GUARDRAIL) ---
         const depositTokenProgramId = await getMintProgramId(initializerDepositMint);
@@ -215,6 +217,8 @@ export const useEscrowActions = () => {
             true,                         // allowOwnerOffCurve (MUST be true for PDAs)
             tokenProgramToUse             // token program id (SPL or Token-2022)
         );
+        const vaultAccount = anchor.web3.Keypair.generate();
+
         console.log("Initializing Escrow Transaction (using dynamic Token Program ID)...");
         console.log("Initializer:", initializerKey.toBase58());
         console.log("Nonce:", nonce);
@@ -225,15 +229,12 @@ export const useEscrowActions = () => {
         console.log("Escrow State PDA:", escrowStatePDA.toBase58());
         console.log("Initializer Amount (BN):", initializerAmountBN.toString());
         console.log("Taker Expected Amount (BN):", takerExpectedAmountBN.toString());
+        console.log("Vault Account PDA:", vaultAccountPDA.toBase58());
         try {
-            console.log("Initializing Escrow Transaction...");
-            // ... your existing logs ...
-
-            const ix = await program.methods
+            const txSignature = await program.methods
                 .initialize(
                     initializerAmountBN,
                     takerExpectedAmountBN,
-                    new anchor.BN(nonce)
                 )
                 .accounts({
                     initializer: initializerKey,
@@ -242,56 +243,41 @@ export const useEscrowActions = () => {
                     takerExpectedTokenMint: takerExpectedMint,
                     initializerReceiveTokenAccount: initializerReceiveTokenAccount,
                     escrowState: escrowStatePDA,
-                    vaultAccount: vaultAccountPDA,  // Derived ATA
+                    vaultAccount: vaultAccountPDA,
                     systemProgram: SystemProgram.programId,
                     tokenProgram: tokenProgramToUse,
                     rent: SYSVAR_RENT_PUBKEY,
                 })
-                .instruction();  // Raw ix (no tx)
-
-            // ← FIXED: Fetch blockhash with lastValidBlockHeight for V0
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-
-            // ← UPDATED: Compile to VersionedTransaction (V0 style, like ATA example)
-            const messageV0 = new TransactionMessage({
-                payerKey: initializerKey,  // Explicit fee payer/signer
-                recentBlockhash: blockhash,
-                instructions: [ix],  // Main ix (no preInstructions in this snippet)
-            }).compileToV0Message();
-
-            const tx = new VersionedTransaction(messageV0);
-
-            // ← UPDATED: Simulate FIRST to catch errors early (like ATA example)
-            const sim = await connection.simulateTransaction(tx, { commitment: 'confirmed' });
-            console.log('Simulation Result:', sim);
-            if (sim.value.err) {
-                console.error('Sim Error Details:', sim.value.err);
-                console.error('Sim Logs:', sim.value.logs?.join('\n') || 'No logs');
-                throw new Error(`Simulation failed: ${JSON.stringify(sim.value.err)}`);
-            }
-            console.log('✅ Simulation passed! Proceeding to send...');
-
-            // ← FIXED: Sign with wallet (ensures initializer signed)
-            // const signedTx = await (wallet as any).signTransaction(tx);
-            // ← UPDATED: Send with options (like ATA example)
-            const txSignature = await sendTransaction(tx, connection, {
-                skipPreflight: false,
-                preflightCommitment: 'confirmed',
-                maxRetries: 3,
-            });
-
-            // // ← UPDATED: Confirm with V0 format (signature + blockhash + lastValidBlockHeight)
-            await connection.confirmTransaction(
-                {
-                    signature: txSignature,
-                    blockhash,
-                    lastValidBlockHeight
-                },
-                'confirmed'
-            );
+                .rpc({
+                    commitment: 'confirmed',  // Auto-sim + confirm
+                    preflightCommitment: 'confirmed',
+                    maxRetries: 3,
+                });
 
             console.log("✅ Escrow Initialized! Sig:", txSignature);
             return { tx: txSignature, escrowStatePDA };
+            // const signedTx = await (wallet!.adapter as PhantomWalletAdapter).signTransaction(tx);
+            // // ← FIXED: Sign with wallet (ensures initializer signed)
+            // // const signedTx = await (wallet as any).signTransaction(tx);
+            // // ← UPDATED: Send with options (like ATA example)
+            // const txSignature = await sendTransaction(signedTx, connection, {
+            //     skipPreflight: false,
+            //     preflightCommitment: 'confirmed',
+            //     maxRetries: 3,
+            // });
+
+            // // ← UPDATED: Confirm with V0 format (signature + blockhash + lastValidBlockHeight)
+            // await connection.confirmTransaction(
+            //     {
+            //         signature: txSignature,
+            //         blockhash,
+            //         lastValidBlockHeight
+            //     },
+            //     'confirmed'
+            // );
+
+            // console.log("✅ Escrow Initialized! Sig:", txSignature);
+            // return { tx: txSignature, escrowStatePDA };
 
         } catch (error: any) {
             console.error("Error initializing escrow:", error);

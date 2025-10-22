@@ -1,13 +1,13 @@
-import { useWallet, useConnection, type AnchorWallet } from "@solana/wallet-adapter-react";
+import { useWallet, useConnection, type AnchorWallet, useAnchorWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
 import { useMemo } from "react";
 import idl from "../target/idl/escrow.json";
-
+import type { Escrow } from "../target/types/escrow";
+import { AnchorProvider, setProvider, Program } from "@coral-xyz/anchor";
 export const useProgram = () => {
     const { connection } = useConnection();
     const { wallet, publicKey, sendTransaction } = useWallet(); // ✅ useWallet instead of useAnchorWallet()
-
+    const anchorWallet = useAnchorWallet();  // ← NEW: Anchor's wallet wrapper (handles signing)
     const PROGRAM_ID = new PublicKey(idl.address);
     const PDA_SEEDS = [new TextEncoder().encode("escrow")];
 
@@ -18,22 +18,26 @@ export const useProgram = () => {
 
     const provider = useMemo(() => {
         if (!wallet || !publicKey) return null;
-        return new anchor.AnchorProvider(connection, wallet.adapter as any, anchor.AnchorProvider.defaultOptions());
+        return new AnchorProvider(connection, anchorWallet as any, {
+            commitment: "confirmed",
+        });
     }, [connection, wallet, publicKey]);
 
+    setProvider(provider!);
     const program = useMemo(() => {
         if (!provider) return null;
-        return new anchor.Program(idl as anchor.Idl, provider);
+        return new Program(idl as Escrow, provider);
     }, [provider]);
 
     return {
         program,
         wallet,
-        publicKey,
+        publicKey: anchorWallet?.publicKey,
         connection,
         sendTransaction, // ✅ add this
         escrowAccountKey,
         PDA_SEEDS,
-        PROGRAM_ID
+        PROGRAM_ID,
+        anchorWallet
     };
 };
