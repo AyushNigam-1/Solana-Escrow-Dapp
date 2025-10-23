@@ -10,9 +10,10 @@
     "lib": [
       "es2015"
     ],
-    "module": "commonjs",
+    "module": "esnext", // ← Key: Change to 'esnext' (or 'node18'/'node20' if Node-specific)
+    "moduleResolution": "node",
     "target": "es6",
+    "esModuleInterop": true,
     "resolveJsonModule": true, // ← Add this
-    "esModuleInterop": true
   }
 }

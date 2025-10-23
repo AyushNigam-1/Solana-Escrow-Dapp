@@ -28,8 +28,20 @@ export const useProgram = () => {
         if (!provider) return null;
         return new Program(idl as Escrow, provider);
     }, [provider]);
+    const getEscrowStatePDA = (initializerKey: PublicKey, uniqueSeed: Buffer) => {
 
+        const [escrowStatePDA] = PublicKey.findProgramAddressSync(
+            [
+                ...PDA_SEEDS,
+                initializerKey.toBuffer(),
+                uniqueSeed
+            ],
+            PROGRAM_ID
+        );
+        return escrowStatePDA;
+    };
     return {
+        getEscrowStatePDA,
         program,
         wallet,
         publicKey: anchorWallet?.publicKey,

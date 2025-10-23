@@ -1,18 +1,17 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{self, CloseAccount, Mint, TokenAccount, Transfer, TokenInterface};  // ← Key: token_interface
+use anchor_spl::token_interface::{self, CloseAccount, Mint, TokenAccount, TokenInterface, Transfer};  // ← FIXED: token_interface for dynamic
 
 // Import the official program IDs for dynamic checking
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use spl_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
 // The Program ID must be updated in Anchor.toml after running anchor build once
-declare_id!("ExNt6Lv4WpfqRP9QT5MZeXMHRNGTTiMsBdXykMuczTU4");
+declare_id!("6pif8tmTXUguUiKngHEXBWU2rsK5RoqzNweA4XC44PZS");
 
 // Define the PDA seed constant for generating the Escrow account address
 const ESCROW_PDA_SEED: &[u8] = b"escrow";
 
 // Helper function to check if the provided Pubkey is a valid token program ID
-// This function returns Result<()>, so it MUST be called within the program functions.
 fn check_token_program_id(program_id: &Pubkey) -> Result<()> {
     if program_id.eq(&TOKEN_PROGRAM_ID) || program_id.eq(&TOKEN_2022_PROGRAM_ID) {
         Ok(())
@@ -31,30 +30,26 @@ pub mod escrow {
         ctx: Context<Initialize>,
         initializer_amount: u64,
         taker_expected_amount: u64,
+        unique_seed: [u8; 8], // ← FIX: Added missing argument
     ) -> Result<()> {
-        // FIX for E0308: Move validation check into the instruction body
-        // The instruction handler expects a Result, allowing us to use '?'.
         check_token_program_id(ctx.accounts.token_program.key)?;
 
         // 1. Set the Escrow State data
         let escrow_account = &mut ctx.accounts.escrow_state;
         escrow_account.initializer_key = *ctx.accounts.initializer.key;
-        escrow_account.initializer_deposit_token_mint = *ctx
+        escrow_account.initializer_deposit_token_mint = ctx
             .accounts
             .initializer_deposit_token_mint
-            .to_account_info()
-            .key;
+            .key();  // ← FIXED: Call key()
         escrow_account.taker_expected_token_mint =
-            *ctx.accounts.taker_expected_token_mint.to_account_info().key;
+            ctx.accounts.taker_expected_token_mint.key();  // ← FIXED: Call key()
         escrow_account.initializer_amount = initializer_amount;
         escrow_account.taker_expected_amount = taker_expected_amount;
-        escrow_account.initializer_receive_token_account = *ctx
+        escrow_account.initializer_receive_token_account = ctx
             .accounts
             .initializer_receive_token_account
-            .to_account_info()
-            .key;
-
-        // Correctly accessing the bump using direct field access
+            .key();  // ← FIXED: Call key()
+        escrow_account.unique_seed = unique_seed;  // ← FIXED: Save unique seed
         escrow_account.bump = ctx.bumps.escrow_state;
 
         // 2. Transfer Token A (Initializer's tokens) into the PDA-owned vault
@@ -66,7 +61,6 @@ pub mod escrow {
             to: ctx.accounts.vault_account.to_account_info(),
             authority: ctx.accounts.initializer.to_account_info(), // Initializer signs this transfer
         };
-        // Pass the generic AccountInfo for the token program
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
 
@@ -77,9 +71,8 @@ pub mod escrow {
 
     /// Allows the Taker (buyer) to exchange their Token B for the Initializer's Token A.
     pub fn exchange(ctx: Context<Exchange>) -> Result<()> {
-        // FIX for E0308: Move validation check into the instruction body
         check_token_program_id(ctx.accounts.token_program.key)?;
-
+        
         let escrow_state = &ctx.accounts.escrow_state;
 
         // Constraint check: Ensure the taker sends the exact amount requested
@@ -99,7 +92,7 @@ pub mod escrow {
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_context_taker_transfer = CpiContext::new(cpi_program, cpi_accounts_taker_transfer);
 
-        token_interface::transfer(  // ← Dynamic transfer
+        token_interface::transfer(
             cpi_context_taker_transfer,
             escrow_state.taker_expected_amount,
         )?;
@@ -108,7 +101,8 @@ pub mod escrow {
         // Define the seeds used to sign the transfer from the PDA
         let authority_seeds = &[
             ESCROW_PDA_SEED,
-            escrow_state.to_account_info().key.as_ref(), // Use the Escrow account key as an additional seed
+            escrow_state.initializer_key.as_ref(), // Use the initializer key
+            escrow_state.unique_seed.as_ref(),    // Use the stored unique seed
             &[escrow_state.bump],
         ];
         let signer_seeds = &[&authority_seeds[..]];
@@ -125,7 +119,7 @@ pub mod escrow {
             signer_seeds,
         );
 
-        token_interface::transfer(  // ← Dynamic transfer
+        token_interface::transfer(
             cpi_context_initializer_transfer,
             escrow_state.initializer_amount,
         )?;
@@ -140,7 +134,7 @@ pub mod escrow {
         let cpi_context_close =
             CpiContext::new_with_signer(cpi_program, cpi_accounts_close, signer_seeds);
 
-        token_interface::close_account(cpi_context_close)?;  // ← Dynamic close
+        token_interface::close_account(cpi_context_close)?;
 
         // The escrow_state account is closed via the #[account(close = taker)] constraint
         Ok(())
@@ -148,7 +142,6 @@ pub mod escrow {
 
     /// Allows the Initializer (Seller) to cancel the escrow and retrieve their Token A.
     pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
-        // FIX for E0308: Move validation check into the instruction body
         check_token_program_id(ctx.accounts.token_program.key)?;
 
         let escrow_state = &ctx.accounts.escrow_state;
@@ -156,7 +149,8 @@ pub mod escrow {
         // --- CPI 1: Return Token A from the vault to the Initializer ---
         let authority_seeds = &[
             ESCROW_PDA_SEED,
-            escrow_state.to_account_info().key.as_ref(),
+            escrow_state.initializer_key.as_ref(), // Use the initializer key
+            escrow_state.unique_seed.as_ref(),    // Use the stored unique seed
             &[escrow_state.bump],
         ];
         let signer_seeds = &[&authority_seeds[..]];
@@ -173,7 +167,7 @@ pub mod escrow {
         let cpi_context_transfer =
             CpiContext::new_with_signer(cpi_program, cpi_accounts_transfer, signer_seeds);
 
-        token_interface::transfer(cpi_context_transfer, ctx.accounts.vault_account.amount)?;  // ← Dynamic transfer
+        token_interface::transfer(cpi_context_transfer, ctx.accounts.vault_account.amount)?;
 
         // --- CPI 2: Close the PDA-owned Vault Account ---
         let cpi_accounts_close = CloseAccount {
@@ -185,7 +179,7 @@ pub mod escrow {
         let cpi_context_close =
             CpiContext::new_with_signer(cpi_program, cpi_accounts_close, signer_seeds);
 
-        token_interface::close_account(cpi_context_close)?;  // ← Dynamic close
+        token_interface::close_account(cpi_context_close)?;
 
         // The escrow_state account is closed via the #[account(close = initializer)] constraint
         Ok(())
@@ -217,20 +211,28 @@ pub struct EscrowState {
     // The token account where the initializer expects to receive Token B
     pub initializer_receive_token_account: Pubkey,
 
+    // The unique 8-byte seed used to derive this PDA
+    pub unique_seed: [u8; 8], // ← FIXED: Added unique seed to state
+
     // The canonical bump seed for the EscrowState PDA
     pub bump: u8,
 }
+
+// Space calculation: 
+// 8 (discriminator) + 32*4 (Pubkeys) + 8*2 (u64 amounts) + 8 (unique_seed) + 1 (bump) = 161 bytes.
+const ESCROW_ACCOUNT_SPACE: usize = 8 + 32 * 4 + 8 * 2 + 8 + 1;
 
 // ----------------------------------------------------------------
 // ACCOUNT STRUCTS
 // ----------------------------------------------------------------
 
-// Space calculation: 8 (discriminator) + 32*4 (Pubkeys) + 8*2 (u64 amounts) + 1 (bump) = 153 bytes.
-const ESCROW_ACCOUNT_SPACE: usize = 8 + 32 + 32 + 32 + 8 + 8 + 32 + 1;
-
 /// Accounts for the `initialize` instruction
 #[derive(Accounts)]
-#[instruction(initializer_amount: u64, taker_expected_amount: u64)]
+#[instruction(
+    initializer_amount: u64, // ← FIXED: Corrected to match function args
+    taker_expected_amount: u64, 
+    unique_seed: [u8; 8] // ← FIXED: Added unique seed arg
+)] 
 pub struct Initialize<'info> {
     /// The user creating the escrow (Seller). Must sign the transaction.
     #[account(mut)]
@@ -238,25 +240,32 @@ pub struct Initialize<'info> {
 
     /// The token account belonging to the initializer that holds Token A (the token being offered).
     /// Initializer's tokens will be transferred from here.
-    #[account(mut, constraint = initializer_deposit_token_account.amount >= initializer_amount @ErrorCode::InsufficientFunds)]
-    pub initializer_deposit_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    #[account(
+        mut, 
+        constraint = initializer_deposit_token_account.amount >= initializer_amount @ErrorCode::InsufficientFunds,
+        token::token_program = token_program
+    )]
+    pub initializer_deposit_token_account: InterfaceAccount<'info, TokenAccount>,  // ← FIXED: InterfaceAccount for dynamic
 
     /// The Mint account for Token A (the token being offered). Used for cross-checking.
-    pub initializer_deposit_token_mint: InterfaceAccount<'info, Mint>,  // ← Dynamic: InterfaceAccount
+    pub initializer_deposit_token_mint: InterfaceAccount<'info, Mint>,  // ← FIXED: InterfaceAccount
 
     /// The Mint account for Token B (the token the seller expects in return). Used for cross-checking.
-    pub taker_expected_token_mint: InterfaceAccount<'info, Mint>,  // ← Dynamic: InterfaceAccount
+    pub taker_expected_token_mint: InterfaceAccount<'info, Mint>,  // ← FIXED: InterfaceAccount
 
     /// The Initializer's account where they will receive the Token B if the trade is completed.
     /// This account must already exist.
-    #[account(mut, constraint = initializer_receive_token_account.owner == initializer.key() @ErrorCode::InvalidOwner)]
-    pub initializer_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    #[account(
+        mut, 
+        constraint = initializer_receive_token_account.owner == initializer.key() @ErrorCode::InvalidOwner,
+        token::token_program = token_program
+    )]
+    pub initializer_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← FIXED: InterfaceAccount
 
     /// The Escrow State PDA account. Stores the details of the trade.
     #[account(
         init,
-        // Escrow account is seeded by the Initializer's key and a static string
-        seeds = [ESCROW_PDA_SEED, initializer.key().as_ref()],
+        seeds = [ESCROW_PDA_SEED, initializer.key().as_ref(), unique_seed.as_ref()],  // ← FIXED: All seeds
         bump,
         payer = initializer,
         space = ESCROW_ACCOUNT_SPACE,
@@ -264,20 +273,20 @@ pub struct Initialize<'info> {
     pub escrow_state: Account<'info, EscrowState>,
 
     /// The PDA-owned token account (Vault) that will hold the Initializer's deposited tokens (Token A).
-    /// This vault is also a PDA, derived from the escrow state account.
     #[account(
         init,
         token::mint = initializer_deposit_token_mint,
-        token::authority = escrow_state, // The EscrowState PDA is the authority of the vault
+        token::authority = escrow_state,
+        token::token_program = token_program, 
         payer = initializer,
+        seeds = [b"vault", escrow_state.key().as_ref()],  // ← FIXED: PDA for vault
+        bump
     )]
-    pub vault_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    pub vault_account: InterfaceAccount<'info, TokenAccount>,  // ← FIXED: InterfaceAccount
 
-    /// Required standard programs and sysvars
     pub system_program: Program<'info, System>,
 
-    /// The Token Program (either Standard SPL Token or Token-2022)
-    pub token_program: Interface<'info, TokenInterface>,  // ← Dynamic: Interface
+    pub token_program: Interface<'info, TokenInterface>,  // ← FIXED: Interface for dynamic
 
     pub rent: Sysvar<'info, Rent>,
 }
@@ -291,22 +300,34 @@ pub struct Exchange<'info> {
 
     /// The Taker's token account that holds Token B (the token being offered).
     /// Taker's tokens will be transferred from here.
-    #[account(mut, constraint = taker_deposit_token_account.mint == escrow_state.taker_expected_token_mint @ErrorCode::InvalidMint)]
-    pub taker_deposit_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    #[account(
+        mut, 
+        constraint = taker_deposit_token_account.mint == escrow_state.taker_expected_token_mint @ErrorCode::InvalidMint,
+        token::token_program = token_program
+    )]
+    pub taker_deposit_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// The Taker's token account where they will receive Token A (the token being bought).
-    #[account(mut, constraint = taker_receive_token_account.mint == escrow_state.initializer_deposit_token_mint @ErrorCode::InvalidMint)]
-    pub taker_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    #[account(
+        mut, 
+        constraint = taker_receive_token_account.mint == escrow_state.initializer_deposit_token_mint @ErrorCode::InvalidMint,
+        token::token_program = token_program
+    )]
+    pub taker_receive_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// The Initializer's token account where they receive the Taker's Token B.
     /// Constraint ensures it matches the address saved in the escrow state.
-    #[account(mut, constraint = initializer_receive_token_account.key() == escrow_state.initializer_receive_token_account @ErrorCode::InvalidAccount)]
-    pub initializer_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    #[account(
+        mut, 
+        constraint = initializer_receive_token_account.key() == escrow_state.initializer_receive_token_account @ErrorCode::InvalidAccount,
+        token::token_program = token_program
+    )]
+    pub initializer_receive_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// The Escrow State PDA account. Check bump seed for security and close it after trade.
     #[account(
         mut,
-        seeds = [ESCROW_PDA_SEED, escrow_state.initializer_key.as_ref()],
+        seeds = [ESCROW_PDA_SEED, escrow_state.initializer_key.as_ref(), escrow_state.unique_seed.as_ref()],  // ← FIXED: All seeds
         bump = escrow_state.bump,
         close = taker, // Refund rent to the Taker, as they complete the trade
         has_one = initializer_key, // Ensure initializer key matches the state
@@ -314,15 +335,18 @@ pub struct Exchange<'info> {
     pub escrow_state: Account<'info, EscrowState>,
 
     /// The PDA-owned token account (Vault) holding the deposited Token A.
-    #[account(mut, token::authority = escrow_state)]
-    pub vault_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    #[account(
+        mut, 
+        token::authority = escrow_state,
+        token::token_program = token_program
+    )]
+    pub vault_account: InterfaceAccount<'info, TokenAccount>,
 
     /// The original Initializer (Seller) account. Only used for the `has_one` constraint check.
     /// CHECK: This field is used only for has_one constraint checking in Exchange context.
     pub initializer_key: AccountInfo<'info>,
 
-    /// Required standard program
-    pub token_program: Interface<'info, TokenInterface>,  // ← Dynamic: Interface
+    pub token_program: Interface<'info, TokenInterface>,  // ← FIXED: Interface for dynamic
 }
 
 /// Accounts for the `cancel` instruction
@@ -333,25 +357,32 @@ pub struct Cancel<'info> {
     pub initializer: Signer<'info>,
 
     /// The Initializer's token account where the refunded Token A is returned.
-    #[account(mut, constraint = initializer_deposit_token_account.owner == initializer.key() @ErrorCode::InvalidOwner)]
-    pub initializer_deposit_token_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    #[account(
+        mut, 
+        constraint = initializer_deposit_token_account.owner == initializer.key() @ErrorCode::InvalidOwner,
+        token::token_program = token_program
+    )]
+    pub initializer_deposit_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// The PDA-owned token account (Vault) holding the deposited Token A.
     /// The authority is the escrow state account.
-    #[account(mut, token::authority = escrow_state)]
-    pub vault_account: InterfaceAccount<'info, TokenAccount>,  // ← Dynamic: InterfaceAccount
+    #[account(
+        mut, 
+        token::authority = escrow_state,
+        token::token_program = token_program
+    )]
+    pub vault_account: InterfaceAccount<'info, TokenAccount>,
 
     /// The Escrow State PDA account. Check bump seed for security and close it.
     #[account(
         mut,
-        seeds = [ESCROW_PDA_SEED, initializer.key().as_ref()],
+        seeds = [ESCROW_PDA_SEED, initializer.key().as_ref(), escrow_state.unique_seed.as_ref()],  // ← FIXED: All seeds
         bump = escrow_state.bump,
         close = initializer, // Refund rent to the Initializer upon cancellation
     )]
     pub escrow_state: Account<'info, EscrowState>,
 
-    /// Required standard program
-    pub token_program: Interface<'info, TokenInterface>,  // ← Dynamic: Interface
+    pub token_program: Interface<'info, TokenInterface>,  // ← FIXED: Interface for dynamic
 }
 
 // ----------------------------------------------------------------

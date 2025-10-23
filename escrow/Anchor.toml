@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-token = "ExNt6Lv4WpfqRP9QT5MZeXMHRNGTTiMsBdXykMuczTU4"
+escrow = "6pif8tmTXUguUiKngHEXBWU2rsK5RoqzNweA4XC44PZS"
 
 [registry]
 url = "https://api.apr.dev"
@@ -16,4 +16,4 @@ cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""

@@ -1,26 +1,32 @@
 [package]
-name = "token"
+name = "escrow"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "token"
+name = "escrow"
 
 [features]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 default = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
-# THIS LINE IS THE CRITICAL FIX for the E0599 errors:
-idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+no-log-ix-name = []
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
 
 [dependencies]
-# IMPORTANT: Ensure your versions match the CLI version (0.32.1)
 anchor-lang = "0.32.1"
 anchor-spl = { version = "0.32.1", features = ["token"] }
 spl-token-2022 = { version = "9.0.0", features = ["no-entrypoint"] }
 spl-token = { version = "8.0.0", features = ["no-entrypoint"] }
-# solana-program = "1.18.1"
-# spl-token = { version = "8.0.0", features = ["no-entrypoint"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(target_os, values("solana"))',
+] }
