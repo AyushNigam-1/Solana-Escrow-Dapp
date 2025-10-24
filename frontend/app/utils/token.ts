@@ -193,7 +193,8 @@ export async function fetchTokenMetadata(
         symbol: onChainMetadata.symbol,
         uri: onChainMetadata.uri,
         description: offChainData.description || "",
-        image: offChainData.image || "" // Use a placeholder if image is missing
+        image: offChainData.image || "", // Use a placeholder if image is missing
+        mintAddress: mintAddress.toBase58(),
     };
 }
 
@@ -234,7 +235,7 @@ export async function fetchUserTokenAccounts(
         const decimals = info.tokenAmount.decimals;
         console.log("mint", info.mint, info.owner, uiAmount)
         // Only include accounts with a positive balance and valid mint/owner
-        if (uiAmount > 0 && info.mint && info.owner) {
+        if (info.mint && info.owner) {
             userAccounts.push({
                 tokenAddress: String(pubkey),
                 mint: info.mint,

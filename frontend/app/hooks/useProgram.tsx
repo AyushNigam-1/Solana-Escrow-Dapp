@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import idl from "../target/idl/escrow.json";
 import type { Escrow } from "../target/types/escrow";
 import { AnchorProvider, setProvider, Program } from "@coral-xyz/anchor";
+import { get } from "http";
 export const useProgram = () => {
     const { connection } = useConnection();
     const { wallet, publicKey, sendTransaction } = useWallet(); // ✅ useWallet instead of useAnchorWallet()
@@ -28,6 +29,7 @@ export const useProgram = () => {
         if (!provider) return null;
         return new Program(idl as Escrow, provider);
     }, [provider]);
+
     const getEscrowStatePDA = (initializerKey: PublicKey, uniqueSeed: Buffer) => {
 
         const [escrowStatePDA] = PublicKey.findProgramAddressSync(
@@ -40,7 +42,20 @@ export const useProgram = () => {
         );
         return escrowStatePDA;
     };
+
+
+    const getVaultPDA = (escrowStatePDA: PublicKey) => {
+        const [vaultAccountPDA] = PublicKey.findProgramAddressSync(
+            [
+                Buffer.from("vault"),                      // Static seed
+                escrowStatePDA.toBuffer(),                 // Key of the Escrow State Account
+            ],
+            PROGRAM_ID
+        );
+        return vaultAccountPDA;
+    }
     return {
+        getVaultPDA,
         getEscrowStatePDA,
         program,
         wallet,

@@ -4,12 +4,13 @@ import {
     SystemProgram,
     SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js';
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { useProgram } from '../../hooks/useProgram';
 import { ensureATA, fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from '@/app/utils/token';
 import { EnhancedEscrow, EscrowAccount } from '@/app/types';
 
 export const useEscrowActions = () => {
-    const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA } = useProgram()
+    const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA } = useProgram()
 
     async function fetchAllEscrows(
     ): Promise<EnhancedEscrow[]> {
@@ -29,7 +30,7 @@ export const useEscrowActions = () => {
 
             for (const escrow of allEscrowAccounts) {
                 const { account, publicKey } = escrow;
-
+                // const escrowPDA = publicKey;
                 // Concurrently fetch metadata for both tokens involved in the trade
                 const [tokenAMetadata, tokenBMetadata] = await Promise.all([
                     fetchTokenMetadata(account.initializerDepositTokenMint),
@@ -47,8 +48,9 @@ export const useEscrowActions = () => {
                     bump: account.bump,
                     seedHex: seedBuffer,
                     initializerKey: account.initializerKey.toBase58(),
-                    initializerReceiveTokenAccount: account.initializerReceiveTokenAccount.toBase58(),
 
+                    initializerReceiveTokenAccount: account.initializerReceiveTokenAccount.toBase58(),
+                    initializerDepositTokenAccount: account.initializerDepositTokenAccount.toBase58(),
                     tokenA: {
                         amount: initialAmount,
                         metadata: tokenAMetadata,
@@ -68,8 +70,6 @@ export const useEscrowActions = () => {
             return [];
         }
     }
-    // PDA_SEEDS should be defined to match your Rust program definition (e.g. Buffer.from("escrow"))
-
 
 
     const initializeEscrow = async (
@@ -151,52 +151,128 @@ export const useEscrowActions = () => {
         }
 
     };
+    // async function fetchEscrowState(
+    //     escrowPda: PublicKey
+    // ): Promise<any> {
+    //     try {
+    //         // Step 1: Derive the PDA address
+    //         // const escrowStatePDA = getEscrowStatePDA(anchorWallet?.publicKey!, uniqueSeed);
+    //         // console.log(`Attempting to fetch data for PDA: ${escrowStatePDA.toBase58()}`);
+
+    //         // Step 2: Fetch the account data using the PDA address
+    //         // The first argument to fetch is the PDA address.
+    //         const escrowData = await program!.account.escrowState.fetch(escrowPda);
+
+    //         console.log("Successfully fetched escrow data:", escrowData);
+    //         // Add the PDA and bump to the retrieved object for convenience
+    //         return {
+    //             ...escrowData,
+    //             // pda: escrowStatePDA,
+    //             // bump: bump
+    //         };
+
+    //     } catch (error) {
+    //         // This is where you catch errors like:
+    //         // - Account does not exist (Error: Account <ADDRESS> does not exist)
+    //         // - Could not decode account data (if the IDL is wrong)
+    //         console.error("Failed to fetch escrow state:", error);
+    //         throw new Error(`Could not retrieve Escrow state. Check the initializer key, unique seed, and if the account exists.`);
+    //     }
+    // }
     async function cancelEscrow(
         uniqueSeed: Buffer,
         initializerDepositTokenAccountKey: PublicKey,
-        mintAddress: PublicKey
+        mintAddress: PublicKey,
+        escrowPDA: PublicKey
     ) {
-        console.log("Cancel Escrow called with seed:", uniqueSeed.toString('hex'));
-        // const escrowStatePDA = getEscrowStatePDA(anchorWallet?.publicKey!, uniqueSeed);
-        // const [vaultAccountPDA] = PublicKey.findProgramAddressSync(
-        //     [
-        //         Buffer.from("vault"),                      // Static seed
-        //         escrowStatePDA.toBuffer(),                 // Key of the Escrow State Account
-        //     ],
-        //     PROGRAM_ID
-        // );
-        // // 1. Derive the Escrow State PDA address
-        // // This must match the seeds defined in the Rust struct: 
-        // // seeds = [ESCROW_PDA_SEED, initializer.key.as_ref(), escrow_state.unique_seed.as_ref()]
-        // const initializerKey = anchorWallet?.publicKey!;
-        // const tokenProgramId = await getMintProgramId(mintAddress);
-        // console.log(`Attempting to cancel Escrow at: ${escrowStatePDA.toBase58()}`);
-        // console.log(`Vault to close: ${vaultAccountPDA.toBase58()}`);
+        console.log("Cancel Escrow called with seed:", uniqueSeed.toString('hex'), initializerDepositTokenAccountKey, mintAddress);
 
-        // try {
-        //     // 2. Build the transaction instruction
-        //     const tx = await program!.methods
-        //         .cancel()
-        //         .accounts({
-        //             initializer: initializerKey,
-        //             initializerDepositTokenAccount: initializerDepositTokenAccountKey,
-        //             vaultAccount: vaultAccountPDA,
-        //             escrowState: escrowStatePDA,
-        //             tokenProgram: tokenProgramId, // Use the SPL Token Program ID
-        //         })
-        //         // 3. Send the transaction
-        //         .rpc();
+        const vaultAccountPDA = getVaultPDA(escrowPDA);
 
-        //     console.log("Escrow cancellation successful! ");
-        //     return tx;
+        const initializerKey = anchorWallet?.publicKey!;
+        const tokenProgramId = await getMintProgramId(mintAddress);
+        console.log(`Attempting to cancel Escrow at: ${escrowPDA.toBase58()}`);
+        console.log(`Vault to close: ${vaultAccountPDA.toBase58()}`);
 
-        // } catch (error) {
-        //     console.error("Failed to cancel escrow:", error);
-        //     // Rethrow the error to be handled by the caller
-        //     throw new Error(`Cancellation failed. Check if accounts are correct and signed.`);
-        // }
+        try {
+            // 2. Build the transaction instruction
+            const tx = await program!.methods
+                .cancel()
+                .accounts({
+                    initializer: initializerKey,
+                    initializerDepositTokenAccount: initializerDepositTokenAccountKey,
+                    vaultAccount: vaultAccountPDA,
+                    escrowState: escrowPDA,
+                    tokenProgram: tokenProgramId, // Use the SPL Token Program ID
+                })
+                // 3. Send the transaction
+                .rpc();
+
+            console.log("Escrow cancellation successful! ");
+            return tx;
+
+        } catch (error) {
+            console.error("Failed to cancel escrow:", error);
+            // Rethrow the error to be handled by the caller
+            throw new Error(`Cancellation failed. Check if accounts are correct and signed.`);
+        }
+    }
+    async function exchangeEscrow(
+        escrowPDA: PublicKey,
+        initializerKey: PublicKey,
+        takerDepositTokenAccount: PublicKey,
+        takerReceiveTokenAccount: PublicKey,
+        initializerReceiveTokenAccount: PublicKey
+    ): Promise<string> {
+        const takerKey = anchorWallet?.publicKey;
+
+        if (!takerKey) {
+            throw new Error("Wallet not connected. Taker must be a signer.");
+        }
+        if (!program) {
+            throw new Error("Anchor program not initialized.");
+        }
+
+        // 1. Derive the Vault PDA Address
+        // The vault PDA is derived using a static seed "vault" and the Escrow State PDA Key.
+        const vaultAccountPDA = getVaultPDA(escrowPDA);
+
+
+        console.log(`[Exchange] Taker (Signer): ${takerKey.toBase58()}`);
+        console.log(`[Exchange] Escrow State PDA: ${escrowPDA.toBase58()}`);
+        console.log(`[Exchange] Vault Account PDA: ${vaultAccountPDA.toBase58()}`);
+
+        try {
+            // 2. Build the transaction instruction
+            const tx = await program!.methods
+                .exchange()
+                .accounts({
+                    taker: takerKey,
+                    takerDepositTokenAccount,
+                    takerReceiveTokenAccount,
+                    initializerReceiveTokenAccount,
+                    escrowState: escrowPDA,
+                    vaultAccount: vaultAccountPDA,
+                    initializerKey, // The original seller's key for constraint check
+                    tokenProgram: TOKEN_2022_PROGRAM_ID, // Assuming standard SPL Token Program
+                })
+                // 3. Send the transaction
+                .rpc();
+
+            console.log("Escrow exchange successful! Transaction:", tx);
+            return tx;
+
+        } catch (error) {
+            console.error("Failed to execute escrow exchange:", error);
+            // Rethrow the error to be handled by the UI
+            throw new Error(`Exchange failed. Ensure all token accounts are correctly initialized and the constraints are met.`);
+        }
     }
     return { initializeEscrow, fetchAllEscrows, cancelEscrow };
 }
+
+
+
+
 // 6p4btTU4ACWJpqT55t9ccmfFruoPJzb1fy7cBSCtaqvo
 // qsKv7R4yhPanCgBcgLmH9gBcnWTbw2ANLoMvTZD3JTi

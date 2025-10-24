@@ -42,6 +42,7 @@ export interface EscrowState {
     initializerAmount: anchor.BN; // Use BN for u64
     takerExpectedAmount: anchor.BN; // Use BN for u64
     initializerReceiveTokenAccount: PublicKey;
+    initializerDepositTokenAccount: PublicKey;
     uniqueSeed: number[]; // Anchor decodes [u8; 8] as number[]
     bump: number;
 }
@@ -74,4 +75,5 @@ export interface EnhancedEscrow {
         metadata: TokenMetadata;
     };
     initializerReceiveTokenAccount: string;
+    initializerDepositTokenAccount: string;
 }

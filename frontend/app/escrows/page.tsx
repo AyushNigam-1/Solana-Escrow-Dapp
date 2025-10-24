@@ -50,11 +50,36 @@ const page = () => {
                 escrows.map((escrow, index) => (
                     <div key={index} className="p-4 mb-4 border border-gray-600 rounded-2xl bg-gray-800 ">
                         <div className='flex justify-between' >
-                            <div>
-                                <img src="https://static.vecteezy.com/system/resources/previews/024/092/856/original/ftx-token-ftt-glass-crypto-coin-3d-illustration-free-png.png" className='w-12' alt="" />
+                            <div className='flex flex-col gap-2' >
+                                <div className='flex gap-1'>
+                                    <img src={escrow.tokenA.metadata.image} className='w-6' alt="" />
+                                    <p>{escrow.tokenA.metadata.name}</p>
+                                </div>
+                                <div className='flex items-end'>
+                                    <h2 className='text-5xl font-bold' >
+                                        {escrow.tokenA.amount}
+                                    </h2>
+                                    <h2 className='text-2xl mx-2' >
+                                        {escrow.tokenA.metadata.symbol}
+                                    </h2>
+                                </div>
                             </div>
-                            <button className='bg-green-300 p-2' onClick={() => contractActions.cancelEscrow(Buffer.from(escrow.seedHex), new PublicKey(escrow.initializerReceiveTokenAccount), new PublicKey(escrow.tokenA.metadata.mintAddress))}>Cancel</button>
+                            <div className='flex flex-col gap-2' >
+                                <div className='flex gap-1'>
+                                    <img src={escrow.tokenB.metadata.image} className='w-6' alt="" />
+                                    <p>{escrow.tokenB.metadata.name}</p>
+                                </div>
+                                <div className='flex items-end'>
+                                    <h2 className='text-5xl font-bold' >
+                                        {escrow.tokenB.amount}
+                                    </h2>
+                                    <h2 className='text-2xl mx-2' >
+                                        {escrow.tokenB.metadata.symbol}
+                                    </h2>
+                                </div>
+                            </div>
                         </div>
+                        <button className='bg-purple-300 p-2' onClick={() => contractActions.cancelEscrow(Buffer.from(escrow.seedHex, 'hex'), new PublicKey(escrow.initializerDepositTokenAccount), new PublicKey(escrow.tokenA.metadata.mintAddress), new PublicKey(escrow.publicKey))}>Cancel</button>
                         {/* <h3 className="text-xl font-bold mb-2">Escrow #{index + 1}</h3>
                         <p><strong>PDA Address:</strong> {escrow.publicKey.toBase58()}</p>
                         <p><strong>Initializer (Seller):</strong> {escrow.account.initializerKey.toBase58()}</p>
