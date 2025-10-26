@@ -118,11 +118,11 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
             onClick={handleClose}
         >
             <div
-                className={`bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg transition-all duration-300 ease-out ${modalClasses} p-6 space-y-6`}
+                className={`bg-gray-100/10 rounded-xl shadow-2xl w-full max-w-lg transition-all duration-300 ease-out ${modalClasses} p-6 space-y-6`}
                 onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
             >
                 <div className=" dark:border-gray-700 flex justify-between items-center ">
-                    <h2 className="text-2xl font-bold text-white ">Initialize Escrow Swap</h2>
+                    <h2 className="text-2xl font-bold text-white ">Create Escrow</h2>
                     <button
                         onClick={handleClose}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
@@ -181,7 +181,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                         disabled={isLoading || !!successPDA}
                         className={`w-full py-3 rounded-xl text-white font-bold transition duration-150 ${isLoading || !!successPDA
                             ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg'
+                            : 'bg-violet-900/70 hover:bg-violet-700/90 shadow-md hover:shadow-lg'
                             }`}
                     >
                         {isLoading ? (
@@ -193,7 +193,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                                 Initializing Escrow...
                             </div>
                         ) : (
-                            'Initialize Escrow'
+                            'Create'
                         )}
                     </button>
                 </form>
