@@ -1,7 +1,7 @@
 "use client"
 
 import React, { FC, SVGProps, useCallback, useState } from 'react'
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 type IconComponent = FC<SVGProps<SVGSVGElement>>;
 
 // Define the structure for the navigation item badge
@@ -64,15 +64,14 @@ const NavItem: FC<NavItemProps> = ({ icon: Icon, text, onNavigate, route, isActi
 const Sidebar = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const router = useRouter();
+  const currentPage = usePathname();
   // Use useCallback for the toggle handler for performance
   const handleToggle = useCallback(() => {
     setIsSidebarOpen(prev => !prev);
   }, []);
-  const [currentPage, setCurrentPage] = useState<string>('/dashboard');
 
   // Callback function to handle navigation (simulating router.push)
   const handleNavigate = useCallback((route: string) => {
-    setCurrentPage(route);
     router.push(route);
     console.log("Navigating to:", route);
     if (isSidebarOpen) {

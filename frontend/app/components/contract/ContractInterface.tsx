@@ -268,7 +268,7 @@ export const useEscrowActions = () => {
             throw new Error(`Exchange failed. Ensure all token accounts are correctly initialized and the constraints are met.`);
         }
     }
-    return { initializeEscrow, fetchAllEscrows, cancelEscrow };
+    return { initializeEscrow, fetchAllEscrows, cancelEscrow, exchangeEscrow };
 }
 
 
