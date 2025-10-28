@@ -76,11 +76,6 @@ pub mod escrow {
         
         let escrow_state = &ctx.accounts.escrow_state;
 
-        // Constraint check: Ensure the taker sends the exact amount requested
-        if ctx.accounts.taker_deposit_token_account.amount != escrow_state.taker_expected_amount {
-            return Err(ErrorCode::InvalidExchangeAmount.into());
-        }
-
         // --- CPI 1: Taker sends Token B to Initializer (Seller) ---
         let cpi_accounts_taker_transfer = Transfer {
             from: ctx.accounts.taker_deposit_token_account.to_account_info(),
