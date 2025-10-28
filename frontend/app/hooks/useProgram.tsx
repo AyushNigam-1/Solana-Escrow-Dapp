@@ -7,7 +7,7 @@ import { AnchorProvider, setProvider, Program } from "@coral-xyz/anchor";
 import { get } from "http";
 export const useProgram = () => {
     const { connection } = useConnection();
-    const { wallet, publicKey, sendTransaction } = useWallet(); // ✅ useWallet instead of useAnchorWallet()
+    const { wallet, publicKey, sendTransaction, disconnect } = useWallet(); // ✅ useWallet instead of useAnchorWallet()
     const anchorWallet = useAnchorWallet();  // ← NEW: Anchor's wallet wrapper (handles signing)
     const PROGRAM_ID = new PublicKey(idl.address);
     const PDA_SEEDS = [new TextEncoder().encode("escrow")];
@@ -57,11 +57,12 @@ export const useProgram = () => {
     return {
         getVaultPDA,
         getEscrowStatePDA,
+        sendTransaction,
+        disconnect,
         program,
         wallet,
         publicKey: anchorWallet?.publicKey,
         connection,
-        sendTransaction, // ✅ add this
         escrowAccountKey,
         PDA_SEEDS,
         PROGRAM_ID,

@@ -61,7 +61,7 @@ interface TokenMetadata {
 }
 
 
-export interface EnhancedEscrow {
+export interface Escrow {
     publicKey: string;
     bump: number;
     seedHex: string;

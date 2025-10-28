@@ -1,17 +1,19 @@
 "use client"
 
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import { useEscrowActions } from '@/app/components/contract/ContractInterface';
 import { useQuery } from '@tanstack/react-query';
 import { PublicKey } from '@solana/web3.js';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import numeral from 'numeral';
+import { Escrow } from '@/app/types';
 
 const page = () => {
     const { publicKey } = useProgram()
     const contractActions = useEscrowActions();
-    const [pendingId, setPendingId] = React.useState<string | null>(null);
+    const [pendingId, setPendingId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState<string | null>("")
     const {
         data,
         isLoading,
@@ -19,17 +21,18 @@ const page = () => {
         isError: isQueryError,
         error: queryError,
         refetch,
-    } = useQuery({
+    } = useQuery<Escrow[]>({
         queryKey: ["AllEscrows"],
         queryFn: () => contractActions.fetchAllEscrows(),
         staleTime: 1000 * 3000,
     });
+    console.log("Fetched Escrows:", data);
     interface ExchangeParams {
-        escrowPDA: PublicKey;
-        initializerKey: PublicKey;
-        takerDepositTokenAccount: PublicKey;
-        takerReceiveTokenAccount: PublicKey;
-        initializerReceiveTokenAccount: PublicKey;
+        seedHex?: string;
+        escrowPDA: string;
+        initializerKey: string;
+        depositTokenMint: string,
+        receiveTokenMint: string,
     }
     interface EscrowData {
         seedHex: string;
@@ -41,25 +44,22 @@ const page = () => {
     const { mutate: exchange, isPending: isExchanging, isError, error } = useMutation({
         // The mutationFn takes the single ExchangeParams object from the mutate() call.
         mutationFn: async (params: ExchangeParams) => {
-            // Call the core function from contractActions
-            const txId = await contractActions.exchangeEscrow(
-                params.escrowPDA,
-                params.initializerKey,
-                params.takerDepositTokenAccount,
-                params.takerReceiveTokenAccount,
-                params.initializerReceiveTokenAccount
-            );
-
-            return { txId, escrowPDA: params.escrowPDA.toBase58() };
+            setPendingId(params.seedHex!)
+            return await contractActions.exchangeEscrow(
+                new PublicKey(params.escrowPDA),
+                new PublicKey(params.initializerKey),
+                new PublicKey(params.depositTokenMint),
+                new PublicKey(params.receiveTokenMint),
+            )
         },
-
-        onSuccess: (data) => {
-            // Invalidate the main list query to trigger an immediate UI refresh
-            queryClient.invalidateQueries({ queryKey: ['allEscrows'] });
-            console.log(`Successfully executed exchange for escrow: ${data.escrowPDA}`);
+        onSuccess: (data: string) => {
+            setPendingId(null);
+            queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
+                return escrows ? escrows.filter(escrow => escrow.publicKey !== data) : [];
+            });
         },
-
         onError: (error) => {
+            setPendingId(null);
             console.error("Escrow exchange failed:", error);
             // Optionally, return a user-friendly error message
             throw new Error(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error during exchange.'}`);
@@ -68,30 +68,42 @@ const page = () => {
     const { mutate, isPending } = useMutation({
         mutationFn: async (escrow: EscrowData) => {
             setPendingId(escrow.seedHex)
-            const seed = Buffer.from(escrow.seedHex, 'hex');
-            const initializerDepositAccount = new PublicKey(escrow.initializerDepositTokenAccount);
-            const depositMint = new PublicKey(escrow.tokenAMintAddress);
-            const escrowPublicKey = new PublicKey(escrow.publicKey);
-
-            const tx = await contractActions.cancelEscrow(
-                seed,
-                initializerDepositAccount,
-                depositMint,
-                escrowPublicKey
+            return await contractActions.cancelEscrow(
+                Buffer.from(escrow.seedHex, 'hex'),
+                new PublicKey(escrow.initializerDepositTokenAccount),
+                new PublicKey(escrow.tokenAMintAddress),
+                new PublicKey(escrow.publicKey)
             );
-
-            return { txId: tx, escrowPublicKey: escrow.publicKey };
         },
         onSuccess: (data) => {
             setPendingId(null);
             queryClient.invalidateQueries({ queryKey: ['allEscrows'] });
-            console.log(`Successfully cancelled escrow: ${data.escrowPublicKey}`);
+            queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
+                return escrows ? escrows.filter(escrow => escrow.publicKey !== data) : [];
+            });
         },
         onError: (error) => {
             setPendingId(null);
             console.error("Escrow cancellation failed:", error);
         },
     });
+    const filteredData = useMemo(() => {
+        if (!searchQuery) {
+            return data;
+        }
+        const lowerCaseQuery = searchQuery.toLowerCase().trim();
+        return data?.filter(escrow => {
+            return (
+                escrow.tokenA.metadata.name.toLowerCase().includes(lowerCaseQuery) ||
+                escrow.tokenA.metadata.symbol.toLowerCase().includes(lowerCaseQuery) ||
+                escrow.tokenB.metadata.name.toLowerCase().includes(lowerCaseQuery) ||
+                escrow.tokenB.metadata.symbol.toLowerCase().includes(lowerCaseQuery) ||
+                escrow.tokenA.metadata.mintAddress.toLowerCase().includes(lowerCaseQuery) ||
+                escrow.tokenB.metadata.mintAddress.toLowerCase().includes(lowerCaseQuery) ||
+                escrow.initializerKey.toLowerCase().includes(lowerCaseQuery)
+            );
+        });
+    }, [data, searchQuery]);
     return (
         <div className='flex flex-col gap-4 font-mono' >
             <div className='flex justify-between' >
@@ -103,7 +115,7 @@ const page = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                             </svg>
                         </div>
-                        <input type="text" id="simple-search" className="bg-gray-100/10  text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 " placeholder="Search Token" required />
+                        <input type="text" id="simple-search" className="bg-gray-100/10  text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 " placeholder="Search Token" required onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
                     <button
                         onClick={() => refetch()}
@@ -131,16 +143,16 @@ const page = () => {
                 <div className="flex items-center justify-center p-8 text-lg rounded-xl">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3"></div>
                 </div>
-
             }
             <div className='grid grid-cols-4 gap-4'>
-                {!isLoading && !isFetching && !queryError && data?.map((escrow: any, index: any) => (
+                {!isLoading && !isFetching && !queryError && filteredData?.length != 0 ? filteredData?.map((escrow: any, index: any) => (
+
                     <div key={index} className="p-4 rounded-2xl bg-gray-100/10 space-y-4">
                         <div className='flex justify-between items-end' >
                             <div className='flex flex-col gap-2' >
                                 <div className='flex gap-1 '>
                                     <img src={escrow.tokenA.metadata.image} className='w-5' alt="" />
-                                    <p className='text-gray-400'>{escrow.tokenA.metadata.name}</p>
+                                    <p className='text-gray-400'>{escrow.tokenA.metadata.name.split(" ").slice(0, 1).join(" ")}...</p>
                                 </div>
                                 <div className='flex items-end'>
                                     <h2 className='text-4xl ' >
@@ -179,7 +191,7 @@ const page = () => {
                         </div>
                         {
                             publicKey == escrow.initializerKey ?
-                                <button className='bg-red-300 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => mutate({ seedHex: escrow.seedHex, initializerDepositTokenAccount: escrow.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, publicKey: escrow.publicKey })}> {(pendingId == escrow.seedHex && isPending) ? <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => mutate({ seedHex: escrow.seedHex, initializerDepositTokenAccount: escrow.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, publicKey: escrow.publicKey })}> {(pendingId == escrow.seedHex && isPending) ? <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
@@ -187,15 +199,24 @@ const page = () => {
                                 </svg>
                                     Cancel</>} </button>
                                 : <>
-                                    <button className='p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center w-full' onClick={() => { }} >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                            <path fillRule="evenodd" d="M15.97 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H7.5a.75.75 0 0 1 0-1.5h11.69l-3.22-3.22a.75.75 0 0 1 0-1.06Zm-7.94 9a.75.75 0 0 1 0 1.06l-3.22 3.22H16.5a.75.75 0 0 1 0 1.5H4.81l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
-                                        </svg>
-                                        Swap</button>
+                                    <button className='p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center w-full' onClick={() => exchange({ seedHex: escrow.seedHex, initializerKey: escrow.initializerKey, escrowPDA: escrow.publicKey, depositTokenMint: escrow.tokenB.metadata.mintAddress, receiveTokenMint: escrow.tokenA.metadata.mintAddress })} >
+                                        {(pendingId == escrow.seedHex && isExchanging) ? <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg> : <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                                <path fillRule="evenodd" d="M15.97 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H7.5a.75.75 0 0 1 0-1.5h11.69l-3.22-3.22a.75.75 0 0 1 0-1.06Zm-7.94 9a.75.75 0 0 1 0 1.06l-3.22 3.22H16.5a.75.75 0 0 1 0 1.5H4.81l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                                            </svg>
+                                            Swap
+                                        </>}
+                                    </button>
                                 </>
                         }
                     </div>
-                ))
+                )) :
+                    // <>
+                    <p className='text-center col-span-4 text-gray-400 text-2xl '>No active escrows found.</p>
+                    // </>
                 }
             </div>
         </div>

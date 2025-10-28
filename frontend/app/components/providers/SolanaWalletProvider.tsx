@@ -9,7 +9,7 @@ import { clusterApiUrl } from "@solana/web3.js";
 
 // NOTE: You must import the CSS for the wallet modal UI somewhere in your project.
 // The best place is often in your 'globals.css' file or directly in your root 'layout.tsx'.
-// import "@solana/wallet-adapter-react-ui/styles.css";
+import "@solana/wallet-adapter-react-ui/styles.css";
 
 // 1. Explicitly set the network to Devnet
 const network = WalletAdapterNetwork.Devnet;

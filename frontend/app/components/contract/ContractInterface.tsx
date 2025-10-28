@@ -7,13 +7,13 @@ import {
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { useProgram } from '../../hooks/useProgram';
 import { ensureATA, fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from '@/app/utils/token';
-import { EnhancedEscrow, EscrowAccount } from '@/app/types';
+import { Escrow, EscrowAccount } from '@/app/types';
 
 export const useEscrowActions = () => {
     const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA } = useProgram()
 
     async function fetchAllEscrows(
-    ): Promise<EnhancedEscrow[]> {
+    ): Promise<Escrow[]> {
         try {
             console.log("Fetching all EscrowState accounts...");
 
@@ -26,7 +26,7 @@ export const useEscrowActions = () => {
             const allEscrowAccounts = await (program.account as any).escrowState.all() as EscrowAccount[];
             console.log(`Found ${allEscrowAccounts.length} escrow accounts. `);
             console.log(allEscrowAccounts);
-            const enhancedEscrows: EnhancedEscrow[] = [];
+            const enhancedEscrows: Escrow[] = [];
 
             for (const escrow of allEscrowAccounts) {
                 const { account, publicKey } = escrow;
@@ -43,7 +43,7 @@ export const useEscrowActions = () => {
                 const seedBuffer = Buffer.from(account.uniqueSeed).toString('hex');
 
                 // Construct the final enhanced object
-                const enhancedEscrow: EnhancedEscrow = {
+                const enhancedEscrow: Escrow = {
                     publicKey: publicKey.toBase58(),
                     bump: account.bump,
                     seedHex: seedBuffer,
@@ -209,7 +209,7 @@ export const useEscrowActions = () => {
                 .rpc();
 
             console.log("Escrow cancellation successful! ");
-            return tx;
+            return escrowPDA.toBase58();
 
         } catch (error) {
             console.error("Failed to cancel escrow:", error);
@@ -220,9 +220,8 @@ export const useEscrowActions = () => {
     async function exchangeEscrow(
         escrowPDA: PublicKey,
         initializerKey: PublicKey,
-        takerDepositTokenAccount: PublicKey,
-        takerReceiveTokenAccount: PublicKey,
-        initializerReceiveTokenAccount: PublicKey
+        depositTokenMint: PublicKey,
+        receiveTokenMint: PublicKey,
     ): Promise<string> {
         const takerKey = anchorWallet?.publicKey;
 
@@ -236,7 +235,21 @@ export const useEscrowActions = () => {
         // 1. Derive the Vault PDA Address
         // The vault PDA is derived using a static seed "vault" and the Escrow State PDA Key.
         const vaultAccountPDA = getVaultPDA(escrowPDA);
-
+        const takerDepositTokenAccount = await ensureATA(
+            depositTokenMint,
+            takerKey,
+            sendTransaction
+        );
+        const takerReceiveTokenAccount = await ensureATA(
+            receiveTokenMint,
+            takerKey,
+            sendTransaction
+        );
+        const initializerReceiveTokenAccount = await ensureATA(
+            depositTokenMint,
+            initializerKey,
+            sendTransaction
+        );
 
         console.log(`[Exchange] Taker (Signer): ${takerKey.toBase58()}`);
         console.log(`[Exchange] Escrow State PDA: ${escrowPDA.toBase58()}`);
@@ -260,7 +273,7 @@ export const useEscrowActions = () => {
                 .rpc();
 
             console.log("Escrow exchange successful! Transaction:", tx);
-            return tx;
+            return escrowPDA.toBase58();
 
         } catch (error) {
             console.error("Failed to execute escrow exchange:", error);
