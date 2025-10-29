@@ -1,11 +1,12 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState } from 'react';
 // Mock imports for runnable component demonstration
 // import { PublicKey } from '@solana/web3.js';
 // import { useWallet } from '@solana/wallet-adapter-react';
 // import * as anchor from "@project-serum/anchor";
 // import { BN } from 'bn.js';
-import { useEscrowActions } from '../contract/ContractInterface';
+import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { PublicKey } from '@solana/web3.js';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 // --- END MOCK UTILITIES ---
 
@@ -37,8 +38,6 @@ const initialFormState: FormState = {
 export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClose, initializerDepositMint }) => {
     const contractActions = useEscrowActions();
     const [formData, setFormData] = useState<FormState>(initialFormState);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [successPDA, setSuccessPDA] = useState<string | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,17 +45,61 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
-        setSuccessPDA(null);
-        setIsLoading(true);
+    // const handleSubmit = async (e: React.FormEvent) => {
+    //     e.preventDefault();
+    //     setError(null);
+    //     setSuccessPDA(null);
+    //     setisPending(true);
 
-        try {
-            // 1. Validation and Conversion
+    //     try {
+    //         // 1. Validation and Conversion
+    //         const requiredFields = ['initializerAmount', 'takerExpectedAmount', 'takerExpectedMint'];
+    //         for (const field of requiredFields) {
+    //             if (!formData[field as keyof FormState]) throw new Error(`${field} is required.`);
+    //         }
+
+    //         const initAmount = parseFloat(formData.initializerAmount);
+    //         const takerAmount = parseFloat(formData.takerExpectedAmount);
+
+    //         if (isNaN(initAmount) || initAmount <= 0 || isNaN(takerAmount) || takerAmount <= 0) {
+    //             throw new Error("Amounts must be positive numbers.");
+    //         }
+
+    //         // --- CRITICAL STEP: CONVERT STRING ADDRESSES TO PUBLIC KEYS ---
+    //         const depositMintPK = new PublicKey(initializerDepositMint);
+    //         const expectedMintPK = new PublicKey(formData.takerExpectedMint);
+
+    //         // 2. Call the real Escrow function with correctly typed arguments
+    //         console.log("Calling initializeEscrow...");
+    //         // console.log(contractActions.())
+    //         // const { escrowStatePDA } = await contractActions.initializeEscrow(
+    //         await contractActions.initializeEscrow(
+
+    //             initAmount,
+    //             takerAmount,
+    //             depositMintPK,
+    //             expectedMintPK
+    //         );
+
+    //         // setSuccessPDA(escrowStatePDA.toBase58());
+
+    //     } catch (err) {
+    //         console.error("Submission Error:", err);
+    //         // Use the error message from the failed conversion or the initializeEscrow function
+    //         setError((err as Error).message || "An unknown error occurred during initialization.");
+    //     } finally {
+    //         setisPending(false);
+    //     }
+    // };
+    const queryClient = useQueryClient();
+    const { mutate: submit, isPending, isError, error, reset } = useMutation({
+        mutationFn: async () => {
             const requiredFields = ['initializerAmount', 'takerExpectedAmount', 'takerExpectedMint'];
+
             for (const field of requiredFields) {
-                if (!formData[field as keyof FormState]) throw new Error(`${field} is required.`);
+                if (!formData[field as keyof typeof formData]) {
+                    throw new Error(`${field} is required.`);
+                }
             }
 
             const initAmount = parseFloat(formData.initializerAmount);
@@ -65,42 +108,34 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
             if (isNaN(initAmount) || initAmount <= 0 || isNaN(takerAmount) || takerAmount <= 0) {
                 throw new Error("Amounts must be positive numbers.");
             }
-
-            // --- CRITICAL STEP: CONVERT STRING ADDRESSES TO PUBLIC KEYS ---
+            // CRITICAL STEP: CONVERT STRING ADDRESSES TO PUBLIC KEYS
             const depositMintPK = new PublicKey(initializerDepositMint);
             const expectedMintPK = new PublicKey(formData.takerExpectedMint);
 
-            // 2. Call the real Escrow function with correctly typed arguments
-            console.log("Calling initializeEscrow...");
-            // console.log(contractActions.())
-            // const { escrowStatePDA } = await contractActions.initializeEscrow(
-            const lol = await contractActions.initializeEscrow(
-
+            // --- 2. Call the Escrow function ---
+            return await contractActions.initializeEscrow(
                 initAmount,
                 takerAmount,
                 depositMintPK,
                 expectedMintPK
             );
+        },
+        onSuccess: (data) => {
+            console.log("✅ Escrow Initialized Successfully! PDA:", data.escrowStatePDA.toBase58());
+            queryClient.invalidateQueries({ queryKey: ['AllEscrows'] });
+        },
 
-            // setSuccessPDA(escrowStatePDA.toBase58());
-
-        } catch (err) {
-            console.error("Submission Error:", err);
-            // Use the error message from the failed conversion or the initializeEscrow function
-            setError((err as Error).message || "An unknown error occurred during initialization.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
+        onError: (error) => {
+            console.error("Escrow initialization failed:", error.message);
+        },
+    });
 
     const handleClose = () => {
-        if (!isLoading) {
+        if (!isPending) {
             onClose();
             // Reset state on close
             setTimeout(() => {
                 setSuccessPDA(null);
-                setError(null);
                 setFormData(initialFormState);
             }, 300); // Wait for animation
         }
@@ -126,17 +161,20 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                     <button
                         onClick={handleClose}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
-                        disabled={isLoading}
+                        disabled={isPending}
                     >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
                 <hr className="border-t border-gray-600" />
-                <form onSubmit={handleSubmit} className=" space-y-6">
-                    {/* <h3 className="text-lg font-semibold  pb-2 ">Token A (Deposit)</h3> */}
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    setSuccessPDA(null);
+                    reset();
+                    submit();
+                }} className=" space-y-6">
                     <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={initializerDepositMint} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled />
-                    <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isLoading} />
-                    {/* <InputGroup label="Deposit Token Account (ATA)" name="initializerDepositTokenAccount" value={formData.initializerDepositTokenAccount} onChange={handleChange} placeholder="Base58 Address (Token A ATA)" disabled={isLoading} /> */}
+                    <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isPending} />
 
                     <div className='flex items-center gap-1 justify-center'>
                         <hr className="border-t border-gray-600 w-full" />
@@ -148,15 +186,12 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                         <hr className="border-t border-gray-600 w-full" />
                     </div>
 
-                    {/* <h3 className="text-lg font-semibold  pb-2  pt-4">Token B (Expected)</h3> */}
-                    <InputGroup label="Token B Mint Address" name="takerExpectedMint" value={formData.takerExpectedMint} onChange={handleChange} placeholder="Base58 Mint Address (Token B)" disabled={isLoading} />
-                    <InputGroup label="Expected Amount (Token B)" name="takerExpectedAmount" type="number" value={formData.takerExpectedAmount} onChange={handleChange} placeholder="e.g., 10" disabled={isLoading} />
-                    {/* <InputGroup label="Receive Token Account (ATA)" name="initializerReceiveTokenAccount" value={formData.initializerReceiveTokenAccount} onChange={handleChange} placeholder="Base58 Address (Token B ATA)" disabled={isLoading} /> */}
+                    <InputGroup label="Token B Mint Address" name="takerExpectedMint" value={formData.takerExpectedMint} onChange={handleChange} placeholder="Base58 Mint Address (Token B)" disabled={isPending} />
+                    <InputGroup label="Expected Amount (Token B)" name="takerExpectedAmount" type="number" value={formData.takerExpectedAmount} onChange={handleChange} placeholder="e.g., 10" disabled={isPending} />
 
-
-                    {error && (
+                    {isError && (
                         <div className="p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded-lg text-sm">
-                            Error: {error}
+                            Error: {error.message}
                         </div>
                     )}
 
@@ -178,13 +213,13 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
 
                     <button
                         type="submit"
-                        disabled={isLoading || !!successPDA}
-                        className={`w-full py-3 rounded-xl text-white font-bold transition duration-150 ${isLoading || !!successPDA
+                        disabled={isPending || !!successPDA}
+                        className={`w-full py-3 rounded-xl text-white font-bold transition duration-150 ${isPending || !!successPDA
                             ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-violet-900/70 hover:bg-violet-700/90 shadow-md hover:shadow-lg'
                             }`}
                     >
-                        {isLoading ? (
+                        {isPending ? (
                             <div className="flex items-center justify-center">
                                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

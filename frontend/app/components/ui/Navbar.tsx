@@ -11,7 +11,7 @@ const Navbar = () => {
     };
     const { disconnect, publicKey } = useProgram();
     return (
-        <nav className="bg-gray-100/10 w-full">
+        <nav className="bg-gray-100/10 w-full font-mono">
             <div className=" flex flex-wrap items-center justify-between p-4">
                 <div></div>
                 <div className="flex items-center">
@@ -27,14 +27,14 @@ const Navbar = () => {
                     >
                         <ul className="px-4 py-4 space-y-4 " aria-labelledby="user-menu-button">
                             <li>
-                                <p className="flex gap-2 items-center text-xl  text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                <p className="flex gap-2 items-center text-xl  text-gray-700  dark:text-gray-200 dark:hover:text-white"> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                                 </svg>
                                     {publicKey?.toString()?.slice(0, 15)}...</p>
                             </li>
                             <div className='bg-gray-400 w-full h-0.5 ' />
                             <li>
-                                <button onClick={() => disconnect().then(() => router.push("/"))} className='p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center w-full'> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                <button onClick={() => disconnect().then(() => router.push("/"))} className='p-2 bg-red-300/80 text-gray-900 rounded-lg mt-auto flex gap-2 items-center justify-center w-full'> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                                 </svg>
                                     Logout</button>

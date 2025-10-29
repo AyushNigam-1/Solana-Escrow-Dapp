@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react'
 import { fetchUserTokenAccounts } from '../../utils/token';
 import Cookies from "js-cookie"
 import { PublicKey } from '@solana/web3.js';
-import { EscrowFormModal } from '../../components/ui/EscrowFormModal';
+import { EscrowFormModal } from '../../components/ui/EscrowForm';
 import { useQuery } from '@tanstack/react-query';
 
 const page = () => {
@@ -68,6 +68,7 @@ const page = () => {
   }, [mockData, searchQuery]);
 
   const isFetching = false;
+  const isError = false;
   return (
     <div className="font-mono flex flex-col gap-4">
       <div className='flex justify-between' >
@@ -84,66 +85,63 @@ const page = () => {
           </div>
           <button
             // onClick={() => refetch()}
-            // disabled={isFetching}
-            className={` py-2 px-4 flex items-center gap-2 rounded-lg text-white transition-all transform hover:scale-[1.01] 
+            disabled={isFetching}
+            className={` py-2 px-4 flex items-center gap-2 rounded-lg text-white transition-all transform
               ${isFetching
                 ? 'bg-gray-500 cursor-not-allowed'
                 : 'bg-violet-900/70'
               }`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`size-6 ${isFetching ? 'animate-spin' : ''}`}>
               <path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0 1 12.548-3.364l1.903 1.903h-3.183a.75.75 0 1 0 0 1.5h4.992a.75.75 0 0 0 .75-.75V4.356a.75.75 0 0 0-1.5 0v3.18l-1.9-1.9A9 9 0 0 0 3.306 9.67a.75.75 0 1 0 1.45.388Zm15.408 3.352a.75.75 0 0 0-.919.53 7.5 7.5 0 0 1-12.548 3.364l-1.902-1.903h3.183a.75.75 0 0 0 0-1.5H2.984a.75.75 0 0 0-.75.75v4.992a.75.75 0 0 0 1.5 0v-3.18l1.9 1.9a9 9 0 0 0 15.059-4.035.75.75 0 0 0-.53-.918Z" clipRule="evenodd" />
             </svg>
-            {isFetching ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </div>
       <div className='grid grid-cols-4 gap-4'>
-        {/* {isError &&
-          <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg shadow-md">
-            <p className="font-bold">Error Loading Tokens</p>
-            <p className="text-sm">{error.message || "Failed to fetch token accounts."}</p>
-          </div>}
-        {
-                isLoading || isFetching &&
-                <div className="flex items-center justify-center p-8 text-lg rounded-xl">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3"></div>
+        {isFetching ? (
+          <div className='flex justify-center col-span-4 p-8 items-center'>
+            <svg className="animate-spin h-6 w-6 text-violet-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {/* <p className='ml-4 text-gray-400 text-xl'>Loading active escrows...</p> */}
+          </div>
+        ) : // 2. Handle Error state if fetching failed
+          isError ? (
+            <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
+          ) : filteredData?.map((token) => {
+            return (
+              <div className='bg-gray-100/10 flex p-4 rounded-2xl' key={token.symbol}>
+                <div className='flex flex-col gap-4 w-full' >
+                  <div className='flex gap-2 items-center'>
+                    <img src={token.image} className='w-14 rounded-full' alt="" />
+                    <div>
+                      <h3 className='text-2xl font-bold line-clamp-1'>{token.name}</h3>
+                      <p className='text-gray-300'>{token.amount} Units</p>
+                    </div>
+                  </div>
+                  <div className='h-0.5 bg-gray-600 w-full' ></div>
+                  <div>
+                    <p className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>Mint Address</p>
+                    <p className='line-clamp-1'>{token.mint.slice(0, 25)}...</p>
+                  </div>
+                  <button className='p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center' onClick={() => { setOpen(true); setMintAddress(token.mint) }} >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                      <path fillRule="evenodd" d="M15.97 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H7.5a.75.75 0 0 1 0-1.5h11.69l-3.22-3.22a.75.75 0 0 1 0-1.06Zm-7.94 9a.75.75 0 0 1 0 1.06l-3.22 3.22H16.5a.75.75 0 0 1 0 1.5H4.81l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                    </svg>
+                    Swap
+                  </button>
                 </div>
-
-            } */}
-        {/* {!isLoading && !isError && data?.map((token) => { */}
+              </div>
+            )
+          })
+        }
         {filteredData.length === 0 && searchQuery && (
           <div className="lg:col-span-4 p-8 rounded-xl text-center text-gray-400">
             <p className="text-xl font-medium">No tokens found matching "{searchQuery}"</p>
           </div>
         )}
-        {filteredData?.map((token) => {
-          return (
-            <div className='bg-gray-100/10 flex p-4 rounded-2xl' key={token.symbol}>
-              <div className='flex flex-col gap-4 w-full' >
-                <div className='flex gap-2 items-center'>
-                  <img src={token.image} className='w-14 rounded-full' alt="" />
-                  <div>
-                    <h3 className='text-2xl font-bold line-clamp-1'>{token.name}</h3>
-                    <p className='text-gray-300'>{token.amount} Units</p>
-                  </div>
-                </div>
-                <div className='h-0.5 bg-gray-600 w-full' ></div>
-                <div>
-                  <p className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>Mint Address</p>
-                  <p className='line-clamp-1'>{token.mint.slice(0, 25)}...</p>
-                </div>
-                <button className='p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center' onClick={() => { setOpen(true); setMintAddress(token.mint) }} >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                    <path fillRule="evenodd" d="M15.97 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H7.5a.75.75 0 0 1 0-1.5h11.69l-3.22-3.22a.75.75 0 0 1 0-1.06Zm-7.94 9a.75.75 0 0 1 0 1.06l-3.22 3.22H16.5a.75.75 0 0 1 0 1.5H4.81l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
-                  </svg>
-                  Swap
-                </button>
-              </div>
-            </div>
-          )
-        })
-        }
       </div>
       <EscrowFormModal isOpen={isOpen} onClose={() => setOpen(false)} initializerDepositMint={mintAddress} />
     </div>

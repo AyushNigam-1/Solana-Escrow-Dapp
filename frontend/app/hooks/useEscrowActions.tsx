@@ -5,7 +5,7 @@ import {
     SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
-import { useProgram } from '../../hooks/useProgram';
+import { useProgram } from './useProgram';
 import { ensureATA, fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from '@/app/utils/token';
 import { Escrow, EscrowAccount } from '@/app/types';
 
@@ -21,8 +21,6 @@ export const useEscrowActions = () => {
                 console.warn("Program not loaded; returning empty escrow list.");
                 return [];
             }
-
-            // Fetch raw accounts
             const allEscrowAccounts = await (program.account as any).escrowState.all() as EscrowAccount[];
             console.log(`Found ${allEscrowAccounts.length} escrow accounts. `);
             console.log(allEscrowAccounts);
@@ -30,8 +28,6 @@ export const useEscrowActions = () => {
 
             for (const escrow of allEscrowAccounts) {
                 const { account, publicKey } = escrow;
-                // const escrowPDA = publicKey;
-                // Concurrently fetch metadata for both tokens involved in the trade
                 const [tokenAMetadata, tokenBMetadata] = await Promise.all([
                     fetchTokenMetadata(account.initializerDepositTokenMint),
                     fetchTokenMetadata(account.takerExpectedTokenMint)
@@ -283,9 +279,3 @@ export const useEscrowActions = () => {
     }
     return { initializeEscrow, fetchAllEscrows, cancelEscrow, exchangeEscrow };
 }
-
-
-
-
-// 6p4btTU4ACWJpqT55t9ccmfFruoPJzb1fy7cBSCtaqvo
-// qsKv7R4yhPanCgBcgLmH9gBcnWTbw2ANLoMvTZD3JTi
