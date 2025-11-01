@@ -11,8 +11,7 @@ const page = () => {
   const [isOpen, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("") // New state for search query
 
-  const publicKey = new PublicKey(Cookies.get("user")!)
-
+  const publicKey = Cookies.get("user")!
   // const {
   //   data,
   //   isLoading,
@@ -22,7 +21,7 @@ const page = () => {
   //   refetch,
   // } = useQuery({
   //   queryKey: ['userTokens', publicKey.toString()],
-  //   queryFn: () => fetchUserTokenAccounts(publicKey),
+  //   queryFn: () => fetchUserTokenAccounts(new PublicKey(publicKey)),
   //   enabled: !!publicKey.toString(),
   //   staleTime: 1000 * 3000,
   // });
@@ -143,7 +142,7 @@ const page = () => {
           </div>
         )}
       </div>
-      <EscrowFormModal isOpen={isOpen} onClose={() => setOpen(false)} initializerDepositMint={mintAddress} />
+      <EscrowFormModal address={publicKey} isOpen={isOpen} onClose={() => setOpen(false)} initializerDepositMint={mintAddress} />
     </div>
   )
 }

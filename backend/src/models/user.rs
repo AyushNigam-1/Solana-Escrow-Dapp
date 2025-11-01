@@ -3,11 +3,6 @@ use crate::models::escrow::Escrows;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::Json;
-#[derive(Debug, Deserialize)]
-pub struct CreateUser {
-    pub address: String,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Status {
     Pending,

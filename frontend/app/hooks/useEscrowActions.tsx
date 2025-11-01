@@ -8,6 +8,8 @@ import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { useProgram } from './useProgram';
 import { ensureATA, fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from '@/app/utils/token';
 import { Escrow, EscrowAccount } from '@/app/types';
+import axios from 'axios';
+const API_BASE = "http://localhost:3000"
 
 export const useEscrowActions = () => {
     const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA } = useProgram()
@@ -277,5 +279,32 @@ export const useEscrowActions = () => {
             throw new Error(`Exchange failed. Ensure all token accounts are correctly initialized and the constraints are met.`);
         }
     }
-    return { initializeEscrow, fetchAllEscrows, cancelEscrow, exchangeEscrow };
+    const userEscrows = async () => {
+        console.log(publicKey)
+        const { data } = await axios.get(`${API_BASE}/api/escrows/${publicKey}`)
+        const escrows: any = []
+        console.log("data", data, "data")
+        for (const escrow of data) {
+            const [tokenAMetadata, tokenBMetadata] = await Promise.all([
+                fetchTokenMetadata(new PublicKey(escrow.accept_mint)),
+                fetchTokenMetadata(new PublicKey(escrow.offer_mint))
+            ]);
+
+            escrows.push({
+                publicKey: escrow.escrow_pda,
+                tokenA: {
+                    amount: escrow.offer_amount,
+                    metadata: tokenAMetadata,
+                },
+                tokenB: {
+                    amount: escrow.offer_mint,
+                    metadata: tokenBMetadata,
+                },
+                stauts: escrow.status
+            })
+        };
+        console.log(escrows)
+        return (escrows)
+    }
+    return { initializeEscrow, fetchAllEscrows, cancelEscrow, exchangeEscrow, userEscrows };
 }

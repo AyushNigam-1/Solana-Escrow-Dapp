@@ -1,4 +1,4 @@
-use crate::handlers::user_handler::{create_user, delete_user, get_user, get_users};
+use crate::handlers::user_handler::{delete_user, get_or_create_user};
 use axum::{
     Router,
     routing::{delete, get},
@@ -6,7 +6,6 @@ use axum::{
 
 pub fn user_routes() -> Router {
     Router::new()
-        .route("/users", get(get_users).post(create_user))
         .route("/users/{id}", delete(delete_user))
-        .route("/user/{address}", get(get_user))
+        .route("/user/{address}", get(get_or_create_user))
 }

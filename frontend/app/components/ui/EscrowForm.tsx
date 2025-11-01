@@ -7,11 +7,13 @@ import React, { useState } from 'react';
 import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { PublicKey } from '@solana/web3.js';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 
 // --- END MOCK UTILITIES ---
 
 // Component props interface
 interface EscrowFormModalProps {
+    address: string;
     isOpen: boolean;
     onClose: () => void;
     initializerDepositMint: string;
@@ -35,7 +37,7 @@ const initialFormState: FormState = {
     takerExpectedMint: '',
 };
 
-export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClose, initializerDepositMint }) => {
+export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpen, onClose, initializerDepositMint }) => {
     const contractActions = useEscrowActions();
     const [formData, setFormData] = useState<FormState>(initialFormState);
     const [successPDA, setSuccessPDA] = useState<string | null>(null);
@@ -45,52 +47,22 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // const handleSubmit = async (e: React.FormEvent) => {
-    //     e.preventDefault();
-    //     setError(null);
-    //     setSuccessPDA(null);
-    //     setisPending(true);
+    const API_BASE = "http://localhost:3000"
+    const { mutate } = useMutation({
+        mutationFn: async ({ address, newEscrow }: { address: string; newEscrow: any }) => {
+            const response = await axios.post(`${API_BASE}/api/escrows/${address}`, newEscrow, {
+                headers: { "Content-Type": "application/json" },
+            });
+            return response.data;
+        },
+        onSuccess: (data) => {
+            console.log("✅ Escrow created successfully:", data);
+        },
+        onError: (error) => {
+            console.error("❌ Error creating escrow:", error);
+        },
+    });
 
-    //     try {
-    //         // 1. Validation and Conversion
-    //         const requiredFields = ['initializerAmount', 'takerExpectedAmount', 'takerExpectedMint'];
-    //         for (const field of requiredFields) {
-    //             if (!formData[field as keyof FormState]) throw new Error(`${field} is required.`);
-    //         }
-
-    //         const initAmount = parseFloat(formData.initializerAmount);
-    //         const takerAmount = parseFloat(formData.takerExpectedAmount);
-
-    //         if (isNaN(initAmount) || initAmount <= 0 || isNaN(takerAmount) || takerAmount <= 0) {
-    //             throw new Error("Amounts must be positive numbers.");
-    //         }
-
-    //         // --- CRITICAL STEP: CONVERT STRING ADDRESSES TO PUBLIC KEYS ---
-    //         const depositMintPK = new PublicKey(initializerDepositMint);
-    //         const expectedMintPK = new PublicKey(formData.takerExpectedMint);
-
-    //         // 2. Call the real Escrow function with correctly typed arguments
-    //         console.log("Calling initializeEscrow...");
-    //         // console.log(contractActions.())
-    //         // const { escrowStatePDA } = await contractActions.initializeEscrow(
-    //         await contractActions.initializeEscrow(
-
-    //             initAmount,
-    //             takerAmount,
-    //             depositMintPK,
-    //             expectedMintPK
-    //         );
-
-    //         // setSuccessPDA(escrowStatePDA.toBase58());
-
-    //     } catch (err) {
-    //         console.error("Submission Error:", err);
-    //         // Use the error message from the failed conversion or the initializeEscrow function
-    //         setError((err as Error).message || "An unknown error occurred during initialization.");
-    //     } finally {
-    //         setisPending(false);
-    //     }
-    // };
     const queryClient = useQueryClient();
     const { mutate: submit, isPending, isError, error, reset } = useMutation({
         mutationFn: async () => {
@@ -122,6 +94,15 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
         },
         onSuccess: (data) => {
             console.log("✅ Escrow Initialized Successfully! PDA:", data.escrowStatePDA.toBase58());
+            const newEscrow = {
+                escrow_pda: data.escrowStatePDA.toBase58(),
+                offer_amount: parseFloat(formData.initializerAmount),
+                accept_amount: parseFloat(formData.takerExpectedAmount),
+                offer_mint: initializerDepositMint,
+                accept_mint: formData.takerExpectedMint,
+                status: "Pending",
+            };
+            mutate({ address, newEscrow })
             queryClient.invalidateQueries({ queryKey: ['AllEscrows'] });
         },
 

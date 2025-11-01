@@ -8,12 +8,40 @@ import { useProgram } from '@/app/hooks/useProgram';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import numeral from 'numeral';
 import { Escrow } from '@/app/types';
+import axios from 'axios';
 
 const page = () => {
     const { publicKey } = useProgram()
     const contractActions = useEscrowActions();
     const [pendingId, setPendingId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState<string | null>("")
+    const API_BASE = "http://localhost:3000"
+
+    const { mutate } = useMutation({
+        mutationFn: async ({
+            address,
+            updatedEscrow,
+        }: {
+            address: string;
+            updatedEscrow: { escrow_pda: string; status: string };
+        }) => {
+            const response = await axios.put(
+                `${API_BASE}/api/escrows/${address}`,
+                updatedEscrow,
+                {
+                    headers: { "Content-Type": "application/json" },
+                }
+            );
+            return response.data;
+        },
+        onSuccess: (data) => {
+            console.log("✅ Escrow updated successfully:", data);
+        },
+        onError: (error) => {
+            console.error("❌ Failed to update escrow:", error);
+        },
+    });
+
     const {
         data,
         isLoading,
@@ -54,6 +82,7 @@ const page = () => {
         },
         onSuccess: (data: string) => {
             setPendingId(null);
+            mutate({ address: publicKey?.toString()!, updatedEscrow: { escrow_pda: data, status: "Completed" } })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
                 return escrows ? escrows.filter(escrow => escrow.publicKey !== data) : [];
             });
@@ -65,7 +94,7 @@ const page = () => {
             throw new Error(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error during exchange.'}`);
         },
     });
-    const { mutate, isPending } = useMutation({
+    const { mutate: cancel, isPending } = useMutation({
         mutationFn: async (escrow: EscrowData) => {
             setPendingId(escrow.seedHex)
             return await contractActions.cancelEscrow(
@@ -77,6 +106,7 @@ const page = () => {
         },
         onSuccess: (data) => {
             setPendingId(null);
+            mutate({ address: publicKey?.toString()!, updatedEscrow: { escrow_pda: data, status: "Cancelled" } })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
                 return escrows ? escrows.filter(escrow => escrow.publicKey !== data) : [];
             });
@@ -186,7 +216,7 @@ const page = () => {
                             </div>
                             {
                                 publicKey == escrow.initializerKey ?
-                                    <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => mutate({ seedHex: escrow.seedHex, initializerDepositTokenAccount: escrow.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, publicKey: escrow.publicKey })}> {(pendingId == escrow.seedHex && isPending) ? <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancel({ seedHex: escrow.seedHex, initializerDepositTokenAccount: escrow.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, publicKey: escrow.publicKey })}> {(pendingId == escrow.seedHex && isPending) ? <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">

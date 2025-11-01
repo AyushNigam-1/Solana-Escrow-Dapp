@@ -5,19 +5,35 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie"
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+import axios from "axios";
+import { useMutation } from "@tanstack/react-query";
 
 function App() {
-  const network = WalletAdapterNetwork.Devnet;
+  // const network = WalletAdapterNetwork.Devnet;
 
   const { publicKey, connected } = useWallet();
   const router = useRouter()
+  const API_BASE = "http://localhost:3000"
+  const { mutate: submit, isPending, isError, error } = useMutation({
+    mutationFn: async (address: string) => {
+      const { data } = await axios.get(`${API_BASE}/api/user/${address}`);
+      return data;
+    },
+    onSuccess: (data) => {
+      console.log("User fetched or created:", data);
+      Cookies.set("user", data);
+      // router.push("/dashboard");
+    },
+    onError: (error) => {
+      console.error("Error fetching/creating user:", error);
+    },
+  });
 
   useEffect(() => {
-    if (publicKey) {
-      Cookies.set("user", String(publicKey))
-      router.push("/dashboard")
+    if (connected && publicKey) {
+      submit(publicKey.toBase58());
     }
-  }, [publicKey, connected]);
+  }, [connected, publicKey]);
 
   return (
     <>
