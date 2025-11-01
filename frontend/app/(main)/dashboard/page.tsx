@@ -79,7 +79,7 @@ const page = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
               </svg>
             </div>
-            <input type="text" id="simple-search" className="bg-gray-100/10  text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 " placeholder="Search Token" required onChange={(e) => setSearchQuery(e.target.value)} // Update state on change
+            <input type="text" id="simple-search" className="bg-white/5  text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 " placeholder="Search Token" required onChange={(e) => setSearchQuery(e.target.value)} // Update state on change
             />
           </div>
           <button
@@ -111,7 +111,7 @@ const page = () => {
             <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
           ) : filteredData?.map((token) => {
             return (
-              <div className='bg-gray-100/10 flex p-4 rounded-2xl' key={token.symbol}>
+              <div className='bg-white/5 flex p-4 rounded-2xl' key={token.symbol}>
                 <div className='flex flex-col gap-4 w-full' >
                   <div className='flex gap-2 items-center'>
                     <img src={token.image} className='w-14 rounded-full' alt="" />

@@ -11,7 +11,7 @@ const Navbar = () => {
     };
     const { disconnect, publicKey } = useProgram();
     return (
-        <nav className="bg-gray-100/10 w-full font-mono">
+        <nav className="bg-white/5 w-full font-mono">
             <div className=" flex flex-wrap items-center justify-between p-4">
                 <div></div>
                 <div className="flex items-center">

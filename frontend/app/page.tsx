@@ -4,6 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie"
+import { motion } from 'framer-motion';
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
@@ -22,7 +23,7 @@ function App() {
     onSuccess: (data) => {
       console.log("User fetched or created:", data);
       Cookies.set("user", data);
-      // router.push("/dashboard");
+      router.push("/dashboard");
     },
     onError: (error) => {
       console.error("Error fetching/creating user:", error);
@@ -36,43 +37,77 @@ function App() {
   }, [connected, publicKey]);
 
   return (
-    <>
-      <WalletMultiButton />
-      <div className="mt-8 p-6 bg-gray-800 border border-purple-500/50 rounded-xl shadow-2xl">
-        {publicKey ? (
-          <div className="text-center">
-            <p className="font-extrabold text-2xl text-green-400 mb-2">
-              Wallet Connected!
-            </p>
-            <p className="text-sm text-gray-400">
-              Your Public Key (Address):
-            </p>
-            <code className="break-all inline-block p-2 mt-1 bg-gray-900 rounded-lg text-yellow-300 shadow-inner">
-              {publicKey.toBase58()}
-            </code>
+    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center font-mono text-white">
+      {/* Floating animated background glow */}
+      <motion.div
+        className="absolute inset-0 -z-10"
+        animate={{
+          background: [
+            'radial-gradient(circle at 20% 30%, rgba(99,102,241,0.2), transparent 70%)',
+            'radial-gradient(circle at 80% 70%, rgba(16,185,129,0.2), transparent 70%)',
+            'radial-gradient(circle at 50% 50%, rgba(79,70,229,0.2), transparent 70%)',
+          ],
+        }}
+        transition={{
+          repeat: Infinity,
+          duration: 7,
+          ease: 'easeInOut',
+        }}
+      />
+      {/* Content box */}
+      <motion.div
+        className="backdrop-blur-md  bg-white/10 rounded-2xl shadow-2xl p-10 flex flex-col items-center text-center max-w-lg w-full mx-4"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+      >
+        <motion.h1
+          className="text-5xl font-extrabold mb-4 bg-clip-text text-gray-200 "
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.6 }}
+        >
+          Escrow Portal
+        </motion.h1>
 
-            {/* Integration point for your custom hooks */}
-            {/* <div className="mt-6">
-                <h3 className="text-xl font-semibold mb-3 text-purple-400">Your Tokens</h3>
-                {loading && <p className="text-sm text-gray-500">Loading token balances...</p>}
-                {accounts.length > 0 && (
-                  <ul className="list-disc list-inside text-left mx-auto max-w-sm">
-                    {accounts.map(acc => (
-                      <li key={acc.address.toBase58()} className="text-gray-300">
-                        {acc.uiAmount} {acc.mint.toBase58().substring(0, 4)}...
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div> */}
-          </div>
-        ) : (
-          <p className="text-center font-semibold text-lg text-red-400">
-            Please connect your wallet to interact with the Escrow DApp.
-          </p>
+        <motion.p
+          className="text-gray-400 mb-8"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.6 }}
+        >
+          Secure. Transparent. Decentralized.
+          Connect your Solana wallet to begin.
+        </motion.p>
+
+        {/* Wallet Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.6 }}
+        >
+          <WalletMultiButton
+            className="!bg-indigo-600 hover:!bg-indigo-500 !rounded-xl !px-8 !py-3 !text-lg !font-semibold !transition-all !duration-300"
+          />
+        </motion.div>
+
+        {/* Connection state */}
+        {connected && (
+          <motion.p
+            className="mt-6 text-sm text-gray-400"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+          >
+            Connected as{' '}
+            <span className="text-indigo-400 font-medium">
+              {publicKey?.toBase58().slice(0, 6)}...
+              {publicKey?.toBase58().slice(-4)}
+            </span>
+          </motion.p>
         )}
-      </div>
-    </>
+      </motion.div>
+    </div>
   );
 }
 

@@ -11,6 +11,17 @@ declare_id!("BU8Hen9NE5zpHGP4hkP3xHZ7BndYUWViqr7TQc2SYfyr");
 // Define the PDA seed constant for generating the Escrow account address
 const ESCROW_PDA_SEED: &[u8] = b"escrow";
 
+#[event]
+pub struct InitializeEvent {
+    pub initializer: Pubkey,
+    pub escrow_pda: Pubkey,
+    pub initializer_amount: u64,
+    pub taker_expected_amount: u64,
+    pub deposit_mint: Pubkey,
+    pub expected_mint: Pubkey,
+    pub vault_account: Pubkey,
+    pub timestamp: i64,
+}
 // Helper function to check if the provided Pubkey is a valid token program ID
 fn check_token_program_id(program_id: &Pubkey) -> Result<()> {
     if program_id.eq(&TOKEN_PROGRAM_ID) || program_id.eq(&TOKEN_2022_PROGRAM_ID) {
@@ -33,7 +44,6 @@ pub mod escrow {
         unique_seed: [u8; 8], // ← FIX: Added missing argument
     ) -> Result<()> {
         check_token_program_id(ctx.accounts.token_program.key)?;
-
         // 1. Set the Escrow State data
         let escrow_account = &mut ctx.accounts.escrow_state;
         escrow_account.initializer_key = *ctx.accounts.initializer.key;
@@ -66,6 +76,17 @@ pub mod escrow {
         let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
 
         token_interface::transfer(cpi_context, initializer_amount)?;  // ← Dynamic transfer
+        
+        emit!(InitializeEvent {
+        initializer: ctx.accounts.initializer.key(),
+        escrow_pda: ctx.accounts.escrow_state.key(),
+        initializer_amount,
+        taker_expected_amount,
+        deposit_mint: ctx.accounts.initializer_deposit_token_mint.key(),
+        expected_mint: ctx.accounts.taker_expected_token_mint.key(),
+        vault_account: ctx.accounts.vault_account.key(),
+        timestamp: Clock::get()?.unix_timestamp,
+        });
 
         Ok(())
     }

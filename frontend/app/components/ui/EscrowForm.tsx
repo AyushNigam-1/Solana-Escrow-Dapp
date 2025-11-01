@@ -134,7 +134,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
             onClick={handleClose}
         >
             <div
-                className={`bg-gray-100/10 rounded-xl shadow-2xl w-full max-w-lg transition-all duration-300 ease-out ${modalClasses} p-6 space-y-6`}
+                className={`bg-white/5 rounded-xl shadow-2xl w-full max-w-lg transition-all duration-300 ease-out ${modalClasses} p-6 space-y-6`}
                 onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
             >
                 <div className=" dark:border-gray-700 flex justify-between items-center ">

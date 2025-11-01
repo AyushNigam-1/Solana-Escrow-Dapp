@@ -78,7 +78,7 @@ const page = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                             </svg>
                         </div>
-                        <input type="text" id="simple-search" className="bg-gray-100/10  text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 " placeholder="Search Token" required onChange={(e) => setSearchQuery(e.target.value)} />
+                        <input type="text" id="simple-search" className="bg-white/5  text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 " placeholder="Search Token" required onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
                     <button
                         onClick={() => refetch()}
@@ -108,7 +108,7 @@ const page = () => {
                     isError ? (
                         <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
                     ) : (escrows?.length != 0) ? escrows?.map((escrow: any, index: any) => (
-                        <div key={index} className="p-4 rounded-2xl bg-gray-100/10 space-y-4 font-mono">
+                        <div key={index} className="p-4 rounded-2xl bg-white/5 space-y-4 font-mono">
                             <div className='flex justify-between items-end' >
                                 <div className='flex flex-col gap-2' >
                                     <div className='flex gap-1 '>
