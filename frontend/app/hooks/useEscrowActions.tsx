@@ -201,6 +201,7 @@ export const useEscrowActions = () => {
                     initializerDepositTokenAccount: initializerDepositTokenAccountKey,
                     vaultAccount: vaultAccountPDA,
                     escrowState: escrowPDA,
+                    initializerDepositMint: mintAddress,
                     tokenProgram: tokenProgramId, // Use the SPL Token Program ID
                 })
                 // 3. Send the transaction

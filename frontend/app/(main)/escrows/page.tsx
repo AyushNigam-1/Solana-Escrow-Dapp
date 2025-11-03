@@ -69,7 +69,7 @@ const page = () => {
         tokenAMintAddress: string;
     }
     const queryClient = useQueryClient();
-    const { mutate: exchange, isPending: isExchanging, isError, error } = useMutation({
+    const { mutate: exchange, isPending: isExchanging } = useMutation({
         // The mutationFn takes the single ExchangeParams object from the mutate() call.
         mutationFn: async (params: ExchangeParams) => {
             setPendingId(params.seedHex!)
@@ -150,7 +150,7 @@ const page = () => {
                         onClick={() => refetch()}
                         disabled={isFetching}
                         className={` py-2 px-4 flex items-center gap-2 rounded-lg text-white transition-all transform hover:scale-[1.01] ${isFetching
-                            ? 'bg-gray-500 cursor-not-allowed'
+                            ? 'bg-white/5  cursor-not-allowed'
                             : 'bg-violet-900/70'
                             }`}
                     >

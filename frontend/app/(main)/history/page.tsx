@@ -27,6 +27,7 @@ const page = () => {
         enabled: !!publicKey, // only run when publicKey exists
         retry: 1,
     });
+    console.log(escrows)
     // const { mutate: cancel, isPending } = useMutation({
     //     mutationFn: async (escrow: EscrowData) => {
     //         setPendingId(escrow.seedHex)
@@ -52,21 +53,25 @@ const page = () => {
     console.log(escrows)
     const filteredData = useMemo(() => {
         if (!searchQuery) {
-            console.log(searchQuery)
+            console.log("searchQuery", searchQuery)
+            console.log("retunring escrows", escrows)
             return escrows;
         }
 
         const lowerCaseQuery = searchQuery.toLowerCase();
 
-        return escrows!.filter((token: any) => {
+        return escrows!.filter(({ tokenA, tokenB }: { tokenA: any, tokenB: any }) => {
             // Filter by name, symbol, or mint address
             return (
-                token.name.toLowerCase().includes(lowerCaseQuery) ||
-                token.symbol.toLowerCase().includes(lowerCaseQuery) ||
-                token.mint.toLowerCase().includes(lowerCaseQuery)
+                tokenA.metadata.name.toLowerCase().includes(lowerCaseQuery) ||
+                tokenA.metadata.symbol.toLowerCase().includes(lowerCaseQuery) ||
+                tokenA.metadata.mint.toLowerCase().includes(lowerCaseQuery) ||
+                tokenB.metadata.name.toLowerCase().includes(lowerCaseQuery) ||
+                tokenB.metadata.symbol.toLowerCase().includes(lowerCaseQuery) ||
+                tokenB.metadata.mint.toLowerCase().includes(lowerCaseQuery)
             );
         });
-    }, [searchQuery]);
+    }, [escrows, searchQuery]);
     return (
         <div className='flex flex-col gap-4 font-mono'>
             <div className='flex justify-between' >
@@ -84,11 +89,11 @@ const page = () => {
                         onClick={() => refetch()}
                         disabled={isFetching}
                         className={` py-2 px-4 flex items-center gap-2 rounded-lg text-white transition-all transform hover:scale-[1.01] ${isFetching
-                            ? 'bg-gray-500 cursor-not-allowed'
+                            ? 'bg-white/5  cursor-not-allowed'
                             : 'bg-violet-900/70'
                             }`}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`size-6 ${isFetching ? 'animate-spin' : ''}`}>
                             <path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0 1 12.548-3.364l1.903 1.903h-3.183a.75.75 0 1 0 0 1.5h4.992a.75.75 0 0 0 .75-.75V4.356a.75.75 0 0 0-1.5 0v3.18l-1.9-1.9A9 9 0 0 0 3.306 9.67a.75.75 0 1 0 1.45.388Zm15.408 3.352a.75.75 0 0 0-.919.53 7.5 7.5 0 0 1-12.548 3.364l-1.902-1.903h3.183a.75.75 0 0 0 0-1.5H2.984a.75.75 0 0 0-.75.75v4.992a.75.75 0 0 0 1.5 0v-3.18l1.9 1.9a9 9 0 0 0 15.059-4.035.75.75 0 0 0-.53-.918Z" clipRule="evenodd" />
                         </svg>
 
@@ -107,7 +112,7 @@ const page = () => {
                 ) : // 2. Handle Error state if fetching failed
                     isError ? (
                         <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
-                    ) : (escrows?.length != 0) ? escrows?.map((escrow: any, index: any) => (
+                    ) : (filteredData?.length != 0) ? filteredData?.map((escrow: any, index: any) => (
                         <div key={index} className="p-4 rounded-2xl bg-white/5 space-y-4 font-mono">
                             <div className='flex justify-between items-end' >
                                 <div className='flex flex-col gap-2' >
