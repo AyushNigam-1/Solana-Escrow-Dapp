@@ -58,6 +58,16 @@ pub mod escrow {
     use super::*;
     /// Initializes the escrow state account and transfers Token A from the seller
     /// to the PDA-owned temporary token account (vault).
+    pub fn initialize_global_stats(ctx: Context<InitializeGlobalStats>) -> Result<()> {
+    let stats = &mut ctx.accounts.global_stats;
+    stats.total_escrows_created = 0;
+    stats.total_escrows_completed = 0;
+    stats.total_escrows_canceled = 0;
+    stats.total_value_locked = 0;
+    stats.total_value_released = 0;
+    stats.bump = ctx.bumps.global_stats;
+    Ok(())
+}
     pub fn initialize(
         ctx: Context<Initialize>,
         initializer_amount: u64,
@@ -98,7 +108,15 @@ pub mod escrow {
             initializer_amount,
             ctx.accounts.initializer_deposit_token_mint.decimals,
         )?;
+        let global_stats = &mut ctx.accounts.global_stats;
+            global_stats.total_escrows_created = global_stats.total_escrows_created.checked_add(1).unwrap();
+            global_stats.total_value_locked = global_stats
+                .total_value_locked
+                .checked_add(initializer_amount)
+                .unwrap();
 
+    // Optional: Track unique active users
+    // global_stats.last_active_user = ctx.accounts.initializer.key();
         emit!(InitializeEvent {
         initializer: ctx.accounts.initializer.key(),
         escrow_pda: ctx.accounts.escrow_state.key(),
@@ -186,7 +204,30 @@ pub mod escrow {
 
             token_interface::close_account(cpi_ctx)?;
         }
+        {
+            let global_stats = &mut ctx.accounts.global_stats;
 
+            // Increment total completed escrows
+            global_stats.total_escrows_completed = global_stats
+                .total_escrows_completed
+                .checked_add(1)
+                .unwrap();
+
+            // Add to total value released
+            global_stats.total_value_released = global_stats
+                .total_value_released
+                .checked_add(escrow_state.initializer_amount)
+                .unwrap();
+
+            // Subtract from TVL (since escrow funds are released)
+            if global_stats.total_value_locked >= escrow_state.initializer_amount {
+                global_stats.total_value_locked -= escrow_state.initializer_amount;
+            } else {
+                global_stats.total_value_locked = 0;
+            }
+
+                // Optionally track the most recent successful trade pair
+        }
         // --- Emit Event ---
         emit!(ExchangeExecuted {
             initializer: escrow_state.initializer_key,
@@ -245,6 +286,21 @@ pub mod escrow {
         CpiContext::new_with_signer(cpi_program, cpi_accounts_close, signer_seeds);
 
     token_interface::close_account(cpi_context_close)?;
+      {
+        let global_stats = &mut ctx.accounts.global_stats;
+
+        // Use checked arithmetic with manual error handling
+        global_stats.total_escrows_canceled = global_stats
+            .total_escrows_canceled
+            .checked_add(1)
+            .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
+
+        global_stats.total_value_released = global_stats
+            .total_value_released
+            .checked_add(escrow_state.initializer_amount)
+            .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
+    }
+
 
     // --- Emit Event ---
     emit!(EscrowCanceled {
@@ -300,6 +356,32 @@ const ESCROW_ACCOUNT_SPACE: usize = 8 + 32 * 5 + 8 * 2 + 8 + 1;
 // ----------------------------------------------------------------
 // ACCOUNT STRUCTS
 // ----------------------------------------------------------------
+#[account]
+pub struct GlobalStats {
+    pub total_escrows_created: u64,
+    pub total_escrows_completed: u64,
+    pub total_escrows_canceled: u64,
+    pub total_value_locked: u64,
+    pub total_value_released: u64,
+    pub bump: u8,
+}
+
+#[derive(Accounts)]
+pub struct InitializeGlobalStats<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,  // payer and initializer
+
+    #[account(
+        init,
+        seeds = [b"global-stats"],
+        bump,
+        payer = admin,
+        space = 8 + 8*5 + 1, // account discriminator + fields
+    )]
+    pub global_stats: Account<'info, GlobalStats>,
+
+    pub system_program: Program<'info, System>,
+}
 
 /// Accounts for the `initialize` instruction
 #[derive(Accounts)]
@@ -336,7 +418,12 @@ pub struct Initialize<'info> {
         token::token_program = token_program
     )]
     pub initializer_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← FIXED: InterfaceAccount
-
+    #[account(
+            mut,
+            seeds = [b"global-stats"], 
+            bump = global_stats.bump
+        )]
+    pub global_stats: Account<'info, GlobalStats>, // ← new addition
     /// The Escrow State PDA account. Stores the details of the trade.
     #[account(
         init,
@@ -414,7 +501,12 @@ pub struct Exchange<'info> {
         token::token_program = token_program
     )]
     pub vault_account: InterfaceAccount<'info, TokenAccount>,
-
+    #[account(
+            mut,
+            seeds = [b"global-stats"],
+            bump = global_stats.bump
+        )]
+    pub global_stats: Account<'info, GlobalStats>,
     /// Mint for Token A (initializer’s deposited token)
     pub initializer_deposit_mint: InterfaceAccount<'info, Mint>,
 
@@ -463,7 +555,12 @@ pub struct Cancel<'info> {
         close = initializer,
     )]
     pub escrow_state: Account<'info, EscrowState>,
-
+ #[account(
+            mut,
+            seeds = [b"global-stats"], 
+            bump = global_stats.bump
+        )]
+    pub global_stats: Account<'info, GlobalStats>,
     pub token_program: Interface<'info, TokenInterface>,
 }
 
@@ -486,4 +583,6 @@ pub enum ErrorCode {
     InvalidExchangeAmount,
     #[msg("The token program provided is neither the Standard SPL Token Program nor the Token-2022 Program.")]
     InvalidTokenProgram,
+    #[msg("Numerical overflow occurred.")]
+    NumericalOverflow,
 }
