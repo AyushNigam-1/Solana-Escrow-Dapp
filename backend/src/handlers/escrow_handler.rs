@@ -1,23 +1,33 @@
 use crate::models::escrow::Escrows;
 use crate::{AppState, models::escrow::UpdatedEscrow};
+use anyhow::Result;
 use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
 };
+use chrono::Duration;
+use chrono::TimeZone;
+use chrono::Utc;
 use serde_json::json;
+
+use sqlx::{PgPool, Row, types::Json as SqlxJson};
 
 pub async fn create_escrow(
     Extension(state): Extension<AppState>,
     Path(address): Path<String>,
-    Json(new_escrow): Json<Escrows>,
+    Json(mut new_escrow): Json<Escrows>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
     println!(
         "📩 Incoming request to create escrow for address: {}",
         address
     );
     println!("🧾 New escrow data received: {:?}", new_escrow);
-
+    let now = Utc::now().naive_utc();
+    new_escrow.created_at = now;
+    new_escrow.expires_at = now + Duration::hours(24); // 🕒 configurable expiry
+    new_escrow.expired = false;
     // Step 1: Fetch current escrows
+
     println!("🔍 Fetching existing escrows for user: {}", address);
     let existing: Result<(sqlx::types::Json<Vec<Escrows>>,), sqlx::Error> =
         sqlx::query_as(r#"SELECT escrows FROM users WHERE address = $1"#)
@@ -72,6 +82,34 @@ pub async fn create_escrow(
     }
 }
 
+pub async fn get_expired_escrows(db: &PgPool) -> Result<Vec<Escrows>> {
+    let now = Utc::now().timestamp();
+    let mut expired_escrows = Vec::new();
+
+    // Fetch all users and their escrows
+    let rows = sqlx::query(r#"SELECT address, escrows FROM users"#)
+        .fetch_all(db)
+        .await?;
+
+    for row in rows {
+        // let address: String = row.try_get("address").unwrap_or_default(); // Not needed for keeper, but kept for context
+
+        let escrows_json: SqlxJson<Vec<Escrows>> =
+            row.try_get("escrows").unwrap_or(SqlxJson(vec![]));
+
+        for escrow in escrows_json.0 {
+            // Convert NaiveDateTime to i64 Unix timestamp
+            let expires_timestamp = Utc.from_utc_datetime(&escrow.expires_at).timestamp();
+
+            if expires_timestamp <= now {
+                // Collect the original Escrow struct, not JSON
+                expired_escrows.push(escrow);
+            }
+        }
+    }
+
+    Ok(expired_escrows)
+}
 pub async fn update_escrow(
     Extension(state): Extension<AppState>,
     Path(address): Path<String>,

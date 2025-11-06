@@ -1,6 +1,5 @@
 pub mod escrow_routes;
 pub mod user_routes;
-
 use axum::Router;
 
 pub fn create_routes() -> Router {

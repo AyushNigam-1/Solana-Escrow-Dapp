@@ -14,4 +14,7 @@ pub struct Escrows {
     pub offer_mint: String,
     pub accept_mint: String,
     pub status: Status,
+    pub created_at: chrono::NaiveDateTime,
+    pub expires_at: chrono::NaiveDateTime,
+    pub expired: bool,
 }

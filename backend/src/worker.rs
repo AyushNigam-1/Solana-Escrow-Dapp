@@ -1,11 +1,14 @@
-use anyhow::Result;
+use crate::{
+    solana_client::{EscrowAccount, SolanaClient},
+    state::AppState,
+};
+use anyhow::anyhow;
+use solana_sdk::pubkey::Pubkey;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 use tracing;
-
-use crate::state::AppState;
-
 pub async fn run_keeper(state: Arc<AppState>) {
     let interval = Duration::from_secs(60);
     let mut ticker = time::interval(interval);
@@ -18,11 +21,47 @@ pub async fn run_keeper(state: Arc<AppState>) {
     }
 }
 
-async fn scan_and_cancel(state: &AppState) -> Result<()> {
-    let escrows = state.solana.get_expired_escrows().await?;
+async fn scan_and_cancel(state: &AppState) -> anyhow::Result<()> {
+    // Step 1: Query DB for expired escrows
+    let rows = sqlx::query!(
+        r#"
+        SELECT 
+            (escrow ->> 'pubkey') AS pubkey,
+            (escrow ->> 'expires_at')::BIGINT AS expires_at
+        FROM users, jsonb_array_elements(escrows) AS escrow
+        WHERE (escrow ->> 'expires_at')::BIGINT < EXTRACT(EPOCH FROM NOW())::BIGINT
+        "#
+    )
+    .fetch_all(&state.db)
+    .await?;
 
-    for escrow in escrows {
-        state.solana.cancel_if_expired(&escrow).await?;
+    if rows.is_empty() {
+        tracing::info!("✅ No expired escrows found");
+        return Ok(());
+    }
+
+    // Step 2: Create a fresh Solana client
+    let solana = SolanaClient::new(&state.rpc_url, &state.keypair_path, &state.program_id).await;
+
+    // Step 3: Cancel each expired escrow
+    for row in rows {
+        let pubkey_str = row
+            .pubkey
+            .as_ref()
+            .ok_or_else(|| anyhow!("Missing pubkey for expired escrow"))?;
+
+        let pubkey = Pubkey::from_str(pubkey_str)?;
+        let escrow = EscrowAccount {
+            pubkey: pubkey,
+            expires_at: row.expires_at.unwrap_or(0),
+        };
+
+        tracing::info!("⏳ Cancelling escrow {:?}", escrow.pubkey);
+        if let Err(e) = solana.cancel_if_expired(&escrow).await {
+            tracing::error!("❌ Failed to cancel escrow {:?}: {:?}", escrow.pubkey, e);
+        } else {
+            tracing::info!("✅ Escrow {:?} cancelled", escrow.pubkey);
+        }
     }
 
     Ok(())
