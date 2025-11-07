@@ -10,7 +10,13 @@ import { ensureATA, fetchTokenMetadata, generateUniqueSeed, getMintProgramId } f
 import { Escrow, EscrowAccount } from '@/app/types';
 import axios from 'axios';
 const API_BASE = "http://localhost:3000"
-
+const getGlobalStatsPDA = (programId: PublicKey) => {
+    const [pda, _] = PublicKey.findProgramAddressSync(
+        [Buffer.from("global-stats")],
+        programId
+    );
+    return pda;
+};
 export const useEscrowActions = () => {
     const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA } = useProgram()
 
@@ -24,8 +30,8 @@ export const useEscrowActions = () => {
                 return [];
             }
             const allEscrowAccounts = await (program.account as any).escrowState.all() as EscrowAccount[];
-            console.log(`Found ${allEscrowAccounts.length} escrow accounts. `);
-            console.log(allEscrowAccounts);
+            // console.log(`Found ${allEscrowAccounts.length} escrow accounts. `);
+            // console.log(allEscrowAccounts);
             const enhancedEscrows: Escrow[] = [];
 
             for (const escrow of allEscrowAccounts) {
@@ -34,7 +40,7 @@ export const useEscrowActions = () => {
                     fetchTokenMetadata(account.initializerDepositTokenMint),
                     fetchTokenMetadata(account.takerExpectedTokenMint)
                 ]);
-
+                console.log("-->", account.takerExpectedTokenMint.toString(), account.initializerKey.toString(), anchorWallet?.publicKey!.toString())
                 // Format amounts (BN to decimal string) and seed (Buffer to hex)
                 const initialAmount = account.initializerAmount.toString(10); // Convert BN to decimal string
                 const expectedAmount = account.takerExpectedAmount.toString(10); // Convert BN to decimal string
@@ -219,8 +225,8 @@ export const useEscrowActions = () => {
     async function exchangeEscrow(
         escrowPDA: PublicKey,
         initializerKey: PublicKey,
-        depositTokenMint: PublicKey,
-        receiveTokenMint: PublicKey,
+        depositTokenMint: PublicKey, // Mint A (initializer_deposit_mint)
+        receiveTokenMint: PublicKey, // Mint B (taker_expected_mint)
     ): Promise<string> {
         const takerKey = anchorWallet?.publicKey;
 
@@ -231,31 +237,39 @@ export const useEscrowActions = () => {
             throw new Error("Anchor program not initialized.");
         }
 
-        // 1. Derive the Vault PDA Address
-        // The vault PDA is derived using a static seed "vault" and the Escrow State PDA Key.
+        const programId = program.programId; // Get the ID of your Anchor program
+        console.log("recieve token mint", receiveTokenMint)
+        // --- 1. Derive all necessary accounts ---
         const vaultAccountPDA = getVaultPDA(escrowPDA);
+        const globalStatsPDA = getGlobalStatsPDA(programId); // NEW: Global stats PDA
+
         const takerDepositTokenAccount = await ensureATA(
-            depositTokenMint,
+            receiveTokenMint, // Taker deposits Token B (receiveTokenMint)
             takerKey,
-            sendTransaction
+            sendTransaction,
         );
+
         const takerReceiveTokenAccount = await ensureATA(
-            receiveTokenMint,
+            depositTokenMint, // Taker receives Token A (depositTokenMint)
             takerKey,
-            sendTransaction
+            sendTransaction,
         );
+
+        // NOTE: This ATA must be the exact one stored in the EscrowState account
+        // It's safer to read the EscrowState account to get the exact key
+        // For now, we rely on the function logic matching the creation logic
         const initializerReceiveTokenAccount = await ensureATA(
-            depositTokenMint,
+            receiveTokenMint, // Initializer receives Token B (receiveTokenMint)
             initializerKey,
-            sendTransaction
+            sendTransaction,
+            // TOKEN_2022_PROGRAM_ID // Ensure this is passed to ATA creation
         );
 
         console.log(`[Exchange] Taker (Signer): ${takerKey.toBase58()}`);
-        console.log(`[Exchange] Escrow State PDA: ${escrowPDA.toBase58()}`);
-        console.log(`[Exchange] Vault Account PDA: ${vaultAccountPDA.toBase58()}`);
+        // ... console logs ...
 
         try {
-            // 2. Build the transaction instruction
+            // --- 2. Build the transaction instruction (FIXED ACCOUNTS) ---
             const tx = await program!.methods
                 .exchange()
                 .accounts({
@@ -265,8 +279,21 @@ export const useEscrowActions = () => {
                     initializerReceiveTokenAccount,
                     escrowState: escrowPDA,
                     vaultAccount: vaultAccountPDA,
-                    initializerKey, // The original seller's key for constraint check
-                    tokenProgram: TOKEN_2022_PROGRAM_ID, // Assuming standard SPL Token Program
+
+                    // NEW: Required by the Anchor context
+                    globalStats: globalStatsPDA,
+
+                    // NEW: Mints required for CPI TransferChecked validation/decimals
+                    initializerDepositMint: depositTokenMint,
+                    takerExpectedMint: receiveTokenMint,
+
+                    initializerKey: initializerKey, // The original seller's key for constraint check
+                    tokenProgram: TOKEN_2022_PROGRAM_ID,
+
+                    // NEW: Required system accounts
+                    systemProgram: SystemProgram.programId,
+                    // Rent is necessary for closing accounts
+                    rent: SYSVAR_RENT_PUBKEY,
                 })
                 // 3. Send the transaction
                 .rpc();
@@ -276,7 +303,6 @@ export const useEscrowActions = () => {
 
         } catch (error) {
             console.error("Failed to execute escrow exchange:", error);
-            // Rethrow the error to be handled by the UI
             throw new Error(`Exchange failed. Ensure all token accounts are correctly initialized and the constraints are met.`);
         }
     }

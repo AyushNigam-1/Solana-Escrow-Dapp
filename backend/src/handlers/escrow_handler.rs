@@ -1,6 +1,7 @@
 use crate::models::escrow::Escrows;
 use crate::{AppState, models::escrow::UpdatedEscrow};
 use anyhow::Result;
+use anyhow::anyhow;
 use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
@@ -89,11 +90,10 @@ pub async fn get_expired_escrows(db: &PgPool) -> Result<Vec<Escrows>> {
     // Fetch all users and their escrows
     let rows = sqlx::query(r#"SELECT address, escrows FROM users"#)
         .fetch_all(db)
-        .await?;
+        .await
+        .map_err(|e| anyhow!("Database error fetching escrows: {}", e))?;
 
     for row in rows {
-        // let address: String = row.try_get("address").unwrap_or_default(); // Not needed for keeper, but kept for context
-
         let escrows_json: SqlxJson<Vec<Escrows>> =
             row.try_get("escrows").unwrap_or(SqlxJson(vec![]));
 
@@ -102,7 +102,6 @@ pub async fn get_expired_escrows(db: &PgPool) -> Result<Vec<Escrows>> {
             let expires_timestamp = Utc.from_utc_datetime(&escrow.expires_at).timestamp();
 
             if expires_timestamp <= now {
-                // Collect the original Escrow struct, not JSON
                 expired_escrows.push(escrow);
             }
         }

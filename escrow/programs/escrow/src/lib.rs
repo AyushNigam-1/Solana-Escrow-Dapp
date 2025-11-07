@@ -245,74 +245,74 @@ pub mod escrow {
 
 
     /// Allows the Initializer (Seller) to cancel the escrow and retrieve their Token A.
-    pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
-    check_token_program_id(&ctx.accounts.token_program.key())?;
+            pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
+            check_token_program_id(&ctx.accounts.token_program.key())?;
 
-    let escrow_state = &ctx.accounts.escrow_state;
+            let escrow_state = &ctx.accounts.escrow_state;
 
-    // --- CPI 1: Return Token A from the vault to the Initializer ---
-    let authority_seeds = &[
-        ESCROW_PDA_SEED,
-        escrow_state.initializer_key.as_ref(),
-        escrow_state.unique_seed.as_ref(),
-        &[escrow_state.bump],
-    ];
-    let signer_seeds = &[&authority_seeds[..]];
+            // --- CPI 1: Return Token A from the vault to the Initializer ---
+            let authority_seeds = &[
+                ESCROW_PDA_SEED,
+                escrow_state.initializer_key.as_ref(),
+                escrow_state.unique_seed.as_ref(),
+                &[escrow_state.bump],
+            ];
+            let signer_seeds = &[&authority_seeds[..]];
 
-    let cpi_accounts_transfer = TransferChecked {
-        from: ctx.accounts.vault_account.to_account_info(),
-        mint: ctx.accounts.initializer_deposit_mint.to_account_info(),
-        to: ctx.accounts.initializer_deposit_token_account.to_account_info(),
-        authority: ctx.accounts.escrow_state.to_account_info(),
-    };
-    let cpi_program = ctx.accounts.token_program.to_account_info();
-    let cpi_context_transfer =
-        CpiContext::new_with_signer(cpi_program, cpi_accounts_transfer, signer_seeds);
+            let cpi_accounts_transfer = TransferChecked {
+                from: ctx.accounts.vault_account.to_account_info(),
+                mint: ctx.accounts.initializer_deposit_mint.to_account_info(),
+                to: ctx.accounts.initializer_deposit_token_account.to_account_info(),
+                authority: ctx.accounts.escrow_state.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_context_transfer =
+                CpiContext::new_with_signer(cpi_program, cpi_accounts_transfer, signer_seeds);
 
-    token_interface::transfer_checked(
-        cpi_context_transfer,
-        escrow_state.initializer_amount,
-        ctx.accounts.initializer_deposit_mint.decimals,
-    )?;
+            token_interface::transfer_checked(
+                cpi_context_transfer,
+                escrow_state.initializer_amount,
+                ctx.accounts.initializer_deposit_mint.decimals,
+            )?;
 
-    // --- CPI 2: Close the PDA-owned Vault Account ---
-    let cpi_accounts_close = CloseAccount {
-        account: ctx.accounts.vault_account.to_account_info(),
-        destination: ctx.accounts.initializer.to_account_info(), // Refund rent to Initializer
-        authority: ctx.accounts.escrow_state.to_account_info(),  // PDA signs the close
-    };
-    let cpi_program = ctx.accounts.token_program.to_account_info();
-    let cpi_context_close =
-        CpiContext::new_with_signer(cpi_program, cpi_accounts_close, signer_seeds);
+            // --- CPI 2: Close the PDA-owned Vault Account ---
+            let cpi_accounts_close = CloseAccount {
+                account: ctx.accounts.vault_account.to_account_info(),
+                destination: ctx.accounts.initializer.to_account_info(), // Refund rent to Initializer
+                authority: ctx.accounts.escrow_state.to_account_info(),  // PDA signs the close
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_context_close =
+                CpiContext::new_with_signer(cpi_program, cpi_accounts_close, signer_seeds);
 
-    token_interface::close_account(cpi_context_close)?;
-      {
-        let global_stats = &mut ctx.accounts.global_stats;
+            token_interface::close_account(cpi_context_close)?;
+            {
+                let global_stats = &mut ctx.accounts.global_stats;
 
-        // Use checked arithmetic with manual error handling
-        global_stats.total_escrows_canceled = global_stats
-            .total_escrows_canceled
-            .checked_add(1)
-            .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
+                // Use checked arithmetic with manual error handling
+                global_stats.total_escrows_canceled = global_stats
+                    .total_escrows_canceled
+                    .checked_add(1)
+                    .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
 
-        global_stats.total_value_released = global_stats
-            .total_value_released
-            .checked_add(escrow_state.initializer_amount)
-            .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
-    }
+                global_stats.total_value_released = global_stats
+                    .total_value_released
+                    .checked_add(escrow_state.initializer_amount)
+                    .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
+            }
 
 
-    // --- Emit Event ---
-    emit!(EscrowCanceled {
-        initializer: escrow_state.initializer_key,
-        initializer_deposit_token_mint: escrow_state.initializer_deposit_token_mint,
-        canceled_amount: escrow_state.initializer_amount,
-        unique_seed: escrow_state.unique_seed,
-        timestamp: Clock::get()?.unix_timestamp,
-    });
+            // --- Emit Event ---
+            emit!(EscrowCanceled {
+                initializer: escrow_state.initializer_key,
+                initializer_deposit_token_mint: escrow_state.initializer_deposit_token_mint,
+                canceled_amount: escrow_state.initializer_amount,
+                unique_seed: escrow_state.unique_seed,
+                timestamp: Clock::get()?.unix_timestamp,
+            });
 
-    Ok(())
-}
+            Ok(())
+        }
 
 }
 
@@ -344,6 +344,7 @@ pub struct EscrowState {
 
     // The unique 8-byte seed used to derive this PDA
     pub unique_seed: [u8; 8], // ← FIXED: Added unique seed to state
+    pub expires_at: i64,
 
     // The canonical bump seed for the EscrowState PDA
     pub bump: u8,
@@ -508,8 +509,13 @@ pub struct Exchange<'info> {
         )]
     pub global_stats: Account<'info, GlobalStats>,
     /// Mint for Token A (initializer’s deposited token)
+    #[account(
+        token::token_program = token_program
+    )]
     pub initializer_deposit_mint: InterfaceAccount<'info, Mint>,
-
+    #[account(
+            token::token_program = token_program
+        )]
     /// Mint for Token B (taker’s offered token)
     pub taker_expected_mint: InterfaceAccount<'info, Mint>,
 
