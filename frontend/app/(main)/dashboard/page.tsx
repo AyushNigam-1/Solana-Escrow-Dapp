@@ -1,15 +1,18 @@
 "use client"
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { fetchUserTokenAccounts } from '../../utils/token';
 import Cookies from "js-cookie"
 import { PublicKey } from '@solana/web3.js';
 import { EscrowFormModal } from '../../components/ui/EscrowForm';
 import { useQuery } from '@tanstack/react-query';
+import { useProgram } from '@/app/hooks/useProgram';
+// import { subscribeToEscrowEvents } from '@/app/utils/event';
 
 const page = () => {
   const [mintAddress, setMintAddress] = useState<string>("")
   const [isOpen, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("") // New state for search query
+  const { program } = useProgram()
 
   const publicKey = Cookies.get("user")!
   // const {
@@ -25,6 +28,11 @@ const page = () => {
   //   enabled: !!publicKey.toString(),
   //   staleTime: 1000 * 3000,
   // });
+  useEffect(() => {
+    if (program) {
+      // subscribeToEscrowEvents("InitializeEvent", program)
+    }
+  }, [program])
   const mockData = [
     {
       "tokenAddress": "CVAVeiQfiiuwfTZqcsRbggsf7kYk3hnvK7GsC8ckibpC",
@@ -65,7 +73,6 @@ const page = () => {
       );
     });
   }, [mockData, searchQuery]);
-
   const isFetching = false;
   const isError = false;
   return (

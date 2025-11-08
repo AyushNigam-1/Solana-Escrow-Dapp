@@ -10,14 +10,7 @@ export const ensureATA = async (mint: PublicKey, publicKey: PublicKey, sendTrans
     // NEW: Detect token program ID based on mint owner
     const mintInfo = await connection.getAccountInfo(mint);
     if (!mintInfo) {
-        throw new Error(`Mint account does // function decodeDataUri(dataUri: string): any {
-//     if (!dataUri || !dataUri.startsWith('data:application/json;base64,')) {
-//         throw new Error("Invalid Data URI format.");
-//     }
-//     const base64Content = dataUri.split(',')[1];
-//     const jsonString = atob(base64Content);
-//     return JSON.parse(jsonString);
-// }not exist: ${mint.toBase58()}`);
+        throw new Error(``);
     }
     console.log('Mint Owner:', mintInfo.owner.toBase58());  // Log for debug: Tokenkeg... (legacy) or Tokenz... (2022)
 
@@ -120,21 +113,16 @@ export const ensureATA = async (mint: PublicKey, publicKey: PublicKey, sendTrans
 
 export const getMintProgramId = async (mint: PublicKey): Promise<PublicKey> => {
     try {
-        // Fetch the mint account data
         const mintAccountInfo = await connection.getAccountInfo(mint);
 
         if (!mintAccountInfo) {
             console.warn("Mint account not found. Defaulting to standard SPL Token Program ID.");
             return TOKEN_PROGRAM_ID;
         }
-
-        // Check if the mint's owner matches the Token-2022 Program ID
         if (mintAccountInfo.owner.equals(TOKEN_2022_PROGRAM_ID)) {
             console.log(`Mint ${mint.toBase58()} is owned by Token-2022.`);
             return TOKEN_2022_PROGRAM_ID;
         }
-
-        // Default to the standard program ID if not Token-2022
         console.log(`Mint ${mint.toBase58()} is owned by standard SPL Token.`);
         return TOKEN_PROGRAM_ID;
 
@@ -149,8 +137,6 @@ export const generateUniqueSeed = (): Buffer => {
     if (typeof window !== 'undefined' && window.crypto) {
         window.crypto.getRandomValues(buffer);
     } else {
-        // Fallback for Node.js environments (like certain testing setups) 
-        // Note: For a true browser/dapp environment, the above line is sufficient.
         console.warn("Using insecure fallback for random seed generation. Ensure window.crypto is available.");
         for (let i = 0; i < 8; i++) {
             buffer[i] = Math.floor(Math.random() * 256);

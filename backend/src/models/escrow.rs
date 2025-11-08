@@ -19,7 +19,7 @@ pub struct Escrows {
     pub expires_at: chrono::NaiveDateTime,
     pub expired: bool,
 }
-
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EscrowState {
     pub initializer_key: Pubkey,
     pub initializer_deposit_token_account: Pubkey, // <-- ADD THIS

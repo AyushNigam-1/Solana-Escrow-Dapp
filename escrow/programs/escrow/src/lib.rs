@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{self, CloseAccount, Mint, TokenAccount, TokenInterface, TransferChecked};  // ← FIXED: token_interface for dynamic
-
 // Import the official program IDs for dynamic checking
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use spl_token_2022::ID as TOKEN_2022_PROGRAM_ID;
@@ -13,14 +12,18 @@ const ESCROW_PDA_SEED: &[u8] = b"escrow";
 
 #[event]
 pub struct InitializeEvent {
-    pub initializer: Pubkey,
-    pub escrow_pda: Pubkey,
+    pub initializer_key: Pubkey,
+    pub initializer_deposit_token_account: Pubkey,
+    pub initializer_deposit_token_mint: Pubkey,
+    pub taker_expected_token_mint: Pubkey,
     pub initializer_amount: u64,
     pub taker_expected_amount: u64,
-    pub deposit_mint: Pubkey,
-    pub expected_mint: Pubkey,
+    pub initializer_receive_token_account: Pubkey,
+    pub unique_seed: [u8; 8],
+    pub expires_at: i64,
+    pub bump: u8,
+    pub escrow_pda: Pubkey,
     pub vault_account: Pubkey,
-    pub timestamp: i64,
 }
 
 #[event]
@@ -78,6 +81,8 @@ pub mod escrow {
         // 1. Set the Escrow State data
         let escrow_account = &mut ctx.accounts.escrow_state;
         escrow_account.initializer_key = *ctx.accounts.initializer.key;
+        let clock = Clock::get()?.unix_timestamp;
+        let expires_at = clock.checked_add(60_i64 * 60 * 24 * 7).ok_or(ErrorCode::Overflow)?;
         escrow_account.initializer_deposit_token_mint = ctx
             .accounts
             .initializer_deposit_token_mint
@@ -108,25 +113,29 @@ pub mod escrow {
             initializer_amount,
             ctx.accounts.initializer_deposit_token_mint.decimals,
         )?;
-        let global_stats = &mut ctx.accounts.global_stats;
-            global_stats.total_escrows_created = global_stats.total_escrows_created.checked_add(1).unwrap();
-            global_stats.total_value_locked = global_stats
-                .total_value_locked
-                .checked_add(initializer_amount)
-                .unwrap();
+        // let global_stats = &mut ctx.accounts.global_stats;
+        //     global_stats.total_escrows_created = global_stats.total_escrows_created.checked_add(1).unwrap();
+        //     global_stats.total_value_locked = global_stats
+        //         .total_value_locked
+        //         .checked_add(initializer_amount)
+        //         .unwrap();
 
     // Optional: Track unique active users
     // global_stats.last_active_user = ctx.accounts.initializer.key();
-        emit!(InitializeEvent {
-        initializer: ctx.accounts.initializer.key(),
-        escrow_pda: ctx.accounts.escrow_state.key(),
+       emit!(InitializeEvent {
+        initializer_key: ctx.accounts.initializer.key(),
+        initializer_deposit_token_account: ctx.accounts.initializer_deposit_token_account.key(),
+        initializer_deposit_token_mint: ctx.accounts.initializer_deposit_token_mint.key(),
+        taker_expected_token_mint: ctx.accounts.taker_expected_token_mint.key(),
         initializer_amount,
         taker_expected_amount,
-        deposit_mint: ctx.accounts.initializer_deposit_token_mint.key(),
-        expected_mint: ctx.accounts.taker_expected_token_mint.key(),
+        initializer_receive_token_account: ctx.accounts.initializer_receive_token_account.key(),
+        unique_seed,
+        expires_at,
+        bump: ctx.bumps.escrow_state,
+        escrow_pda: ctx.accounts.escrow_state.key(),
         vault_account: ctx.accounts.vault_account.key(),
-        timestamp: Clock::get()?.unix_timestamp,
-        });
+    });
 
         Ok(())
     }
@@ -204,30 +213,30 @@ pub mod escrow {
 
             token_interface::close_account(cpi_ctx)?;
         }
-        {
-            let global_stats = &mut ctx.accounts.global_stats;
+        // {
+        //     let global_stats = &mut ctx.accounts.global_stats;
 
-            // Increment total completed escrows
-            global_stats.total_escrows_completed = global_stats
-                .total_escrows_completed
-                .checked_add(1)
-                .unwrap();
+        //     // Increment total completed escrows
+        //     global_stats.total_escrows_completed = global_stats
+        //         .total_escrows_completed
+        //         .checked_add(1)
+        //         .unwrap();
 
-            // Add to total value released
-            global_stats.total_value_released = global_stats
-                .total_value_released
-                .checked_add(escrow_state.initializer_amount)
-                .unwrap();
+        //     // Add to total value released
+        //     global_stats.total_value_released = global_stats
+        //         .total_value_released
+        //         .checked_add(escrow_state.initializer_amount)
+        //         .unwrap();
 
-            // Subtract from TVL (since escrow funds are released)
-            if global_stats.total_value_locked >= escrow_state.initializer_amount {
-                global_stats.total_value_locked -= escrow_state.initializer_amount;
-            } else {
-                global_stats.total_value_locked = 0;
-            }
+        //     // Subtract from TVL (since escrow funds are released)
+        //     if global_stats.total_value_locked >= escrow_state.initializer_amount {
+        //         global_stats.total_value_locked -= escrow_state.initializer_amount;
+        //     } else {
+        //         global_stats.total_value_locked = 0;
+        //     }
 
-                // Optionally track the most recent successful trade pair
-        }
+        //         // Optionally track the most recent successful trade pair
+        // }
         // --- Emit Event ---
         emit!(ExchangeExecuted {
             initializer: escrow_state.initializer_key,
@@ -286,20 +295,20 @@ pub mod escrow {
                 CpiContext::new_with_signer(cpi_program, cpi_accounts_close, signer_seeds);
 
             token_interface::close_account(cpi_context_close)?;
-            {
-                let global_stats = &mut ctx.accounts.global_stats;
+            // {
+            //     let global_stats = &mut ctx.accounts.global_stats;
 
-                // Use checked arithmetic with manual error handling
-                global_stats.total_escrows_canceled = global_stats
-                    .total_escrows_canceled
-                    .checked_add(1)
-                    .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
+            //     // Use checked arithmetic with manual error handling
+            //     global_stats.total_escrows_canceled = global_stats
+            //         .total_escrows_canceled
+            //         .checked_add(1)
+            //         .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
 
-                global_stats.total_value_released = global_stats
-                    .total_value_released
-                    .checked_add(escrow_state.initializer_amount)
-                    .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
-            }
+            //     global_stats.total_value_released = global_stats
+            //         .total_value_released
+            //         .checked_add(escrow_state.initializer_amount)
+            //         .ok_or_else(|| error!(ErrorCode::NumericalOverflow))?;
+            // }
 
 
             // --- Emit Event ---
@@ -419,12 +428,12 @@ pub struct Initialize<'info> {
         token::token_program = token_program
     )]
     pub initializer_receive_token_account: InterfaceAccount<'info, TokenAccount>,  // ← FIXED: InterfaceAccount
-    #[account(
-            mut,
-            seeds = [b"global-stats"], 
-            bump = global_stats.bump
-        )]
-    pub global_stats: Account<'info, GlobalStats>, // ← new addition
+    // #[account(
+    //         mut,
+    //         seeds = [b"global-stats"], 
+    //         bump = global_stats.bump
+    //     )]
+    // pub global_stats: Account<'info, GlobalStats>, // ← new addition
     /// The Escrow State PDA account. Stores the details of the trade.
     #[account(
         init,
@@ -502,12 +511,12 @@ pub struct Exchange<'info> {
         token::token_program = token_program
     )]
     pub vault_account: InterfaceAccount<'info, TokenAccount>,
-    #[account(
-            mut,
-            seeds = [b"global-stats"],
-            bump = global_stats.bump
-        )]
-    pub global_stats: Account<'info, GlobalStats>,
+    // #[account(
+    //         mut,
+    //         seeds = [b"global-stats"],
+    //         bump = global_stats.bump
+    //     )]
+    // pub global_stats: Account<'info, GlobalStats>,
     /// Mint for Token A (initializer’s deposited token)
     #[account(
         token::token_program = token_program
@@ -561,12 +570,12 @@ pub struct Cancel<'info> {
         close = initializer,
     )]
     pub escrow_state: Account<'info, EscrowState>,
- #[account(
-            mut,
-            seeds = [b"global-stats"], 
-            bump = global_stats.bump
-        )]
-    pub global_stats: Account<'info, GlobalStats>,
+//  #[account(
+//             mut,
+//             seeds = [b"global-stats"], 
+//             bump = global_stats.bump
+//         )]
+//     pub global_stats: Account<'info, GlobalStats>,
     pub token_program: Interface<'info, TokenInterface>,
 }
 
@@ -577,6 +586,8 @@ pub struct Cancel<'info> {
 
 #[error_code]
 pub enum ErrorCode {
+    #[msg("Arithmetic overflow occurred during calculation")]
+    Overflow,
     #[msg("Insufficient funds in the initializer's deposit token account.")]
     InsufficientFunds,
     #[msg("The provided account does not belong to the correct owner.")]

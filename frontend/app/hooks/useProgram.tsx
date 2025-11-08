@@ -1,4 +1,4 @@
-import { useWallet, useConnection, type AnchorWallet, useAnchorWallet } from "@solana/wallet-adapter-react";
+import { useWallet, useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { useMemo } from "react";
 import idl from "../target/idl/escrow.json";
@@ -30,7 +30,6 @@ export const useProgram = () => {
     }, [provider]);
 
     const getEscrowStatePDA = (initializerKey: PublicKey, uniqueSeed: Buffer) => {
-
         const [escrowStatePDA] = PublicKey.findProgramAddressSync(
             [
                 ...PDA_SEEDS,
@@ -53,6 +52,7 @@ export const useProgram = () => {
         );
         return vaultAccountPDA;
     }
+
     return {
         getVaultPDA,
         getEscrowStatePDA,

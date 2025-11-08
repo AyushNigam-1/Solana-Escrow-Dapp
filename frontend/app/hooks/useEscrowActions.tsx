@@ -18,7 +18,7 @@ const getGlobalStatsPDA = (programId: PublicKey) => {
     return pda;
 };
 export const useEscrowActions = () => {
-    const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA } = useProgram()
+    const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA, connection } = useProgram()
 
     async function fetchAllEscrows(
     ): Promise<Escrow[]> {
@@ -30,8 +30,6 @@ export const useEscrowActions = () => {
                 return [];
             }
             const allEscrowAccounts = await (program.account as any).escrowState.all() as EscrowAccount[];
-            // console.log(`Found ${allEscrowAccounts.length} escrow accounts. `);
-            // console.log(allEscrowAccounts);
             const enhancedEscrows: Escrow[] = [];
 
             for (const escrow of allEscrowAccounts) {
@@ -40,21 +38,12 @@ export const useEscrowActions = () => {
                     fetchTokenMetadata(account.initializerDepositTokenMint),
                     fetchTokenMetadata(account.takerExpectedTokenMint)
                 ]);
-                console.log("-->", account.takerExpectedTokenMint.toString(), account.initializerKey.toString(), anchorWallet?.publicKey!.toString())
-                // Format amounts (BN to decimal string) and seed (Buffer to hex)
-                const initialAmount = account.initializerAmount.toString(10); // Convert BN to decimal string
-                const expectedAmount = account.takerExpectedAmount.toString(10); // Convert BN to decimal string
-                const seedBuffer = Buffer.from(account.uniqueSeed).toString('hex');
+                const initialAmount = account.initializerAmount.toString(10);
+                const expectedAmount = account.takerExpectedAmount.toString(10);
 
-                // Construct the final enhanced object
                 const enhancedEscrow: Escrow = {
-                    publicKey: publicKey.toBase58(),
-                    bump: account.bump,
-                    seedHex: seedBuffer,
-                    initializerKey: account.initializerKey.toBase58(),
-
-                    initializerReceiveTokenAccount: account.initializerReceiveTokenAccount.toBase58(),
-                    initializerDepositTokenAccount: account.initializerDepositTokenAccount.toBase58(),
+                    publicKey,
+                    account,
                     tokenA: {
                         amount: initialAmount,
                         metadata: tokenAMetadata,
@@ -74,7 +63,30 @@ export const useEscrowActions = () => {
             return [];
         }
     }
+    async function getEventsFromSignature(
+        txSignature: string,
+        eventName: string
+    ): Promise<any | null> {
+        // 1. Fetch the confirmed transaction details
+        const txResponse = await connection.getTransaction(txSignature, {
+            maxSupportedTransactionVersion: 0,
+            commitment: "confirmed",
+        });
+        if (!txResponse || !txResponse.meta?.logMessages) {
+            console.error("Failed to fetch transaction or logs.");
+            return null;
+        }
 
+        const eventParser = new anchor.EventParser(program!.programId, new anchor.BorshCoder(program!.idl));
+        const decodedEvents = eventParser.parseLogs(txResponse.meta.logMessages);
+
+        const initializeEvent = decodedEvents.find((e: any) => e.name === eventName);
+        if (initializeEvent) {
+            return initializeEvent.data;
+        }
+        console.warn("InitializeEvent not found in transaction logs.");
+        return null;
+    }
 
     const initializeEscrow = async (
         initializerAmount: number,
@@ -144,7 +156,12 @@ export const useEscrowActions = () => {
                 });
 
             console.log("✅ Escrow Initialized! Sig:", txSignature);
-            return { tx: txSignature, escrowStatePDA };
+            const eventData = await getEventsFromSignature(txSignature, "initializeEvent");
+            console.log(eventData)
+            if (!eventData) {
+                console.warn("Event data not found in confirmed transaction. Check program logs.");
+            }
+            return { tx: txSignature, escrowStatePDA, eventData };
 
         } catch (error: any) {
             console.error("Error initializing escrow:", error);

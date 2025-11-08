@@ -8,7 +8,6 @@ import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { PublicKey } from '@solana/web3.js';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-
 // --- END MOCK UTILITIES ---
 
 // Component props interface
@@ -41,16 +40,15 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
     const contractActions = useEscrowActions();
     const [formData, setFormData] = useState<FormState>(initialFormState);
     const [successPDA, setSuccessPDA] = useState<string | null>(null);
-
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const API_BASE = "http://localhost:3000"
+    const API_BASE = "http://127.0.0.1:3000"
     const { mutate } = useMutation({
-        mutationFn: async ({ address, newEscrow }: { address: string; newEscrow: any }) => {
-            const response = await axios.post(`${API_BASE}/api/escrows/${address}`, newEscrow, {
+        mutationFn: async ({ address, escrow }: { address: string; escrow: any }) => {
+            const response = await axios.post(`${API_BASE}/api/escrows/${address}`, escrow, {
                 headers: { "Content-Type": "application/json" },
             });
             return response.data;
@@ -94,15 +92,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
         },
         onSuccess: (data) => {
             console.log("✅ Escrow Initialized Successfully! PDA:", data.escrowStatePDA.toBase58());
-            const newEscrow = {
-                escrow_pda: data.escrowStatePDA.toBase58(),
-                offer_amount: parseFloat(formData.initializerAmount),
-                accept_amount: parseFloat(formData.takerExpectedAmount),
-                offer_mint: initializerDepositMint,
-                accept_mint: formData.takerExpectedMint,
-                status: "Pending",
-            };
-            mutate({ address, newEscrow })
+            mutate({ address, escrow: data.eventData })
             queryClient.invalidateQueries({ queryKey: ['AllEscrows'] });
         },
 
@@ -127,6 +117,8 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
         : 'opacity-0 translate-y-4 scale-95 pointer-events-none';
 
     if (!isOpen) return null;
+
+
 
     return (
         <div

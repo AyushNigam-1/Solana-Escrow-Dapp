@@ -15,7 +15,8 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const network = WalletAdapterNetwork.Devnet;
 
 // 2. Define the RPC endpoint based on the network
-const endpoint = clusterApiUrl(network);
+// const endpoint = clusterApiUrl(network);
+const endpoint = "https://devnet.helius-rpc.com/?api-key=d058c230-69f1-4f9c-bb73-c21ce32a483a"
 
 export const SolanaWalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 

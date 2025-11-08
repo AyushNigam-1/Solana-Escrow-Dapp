@@ -1,4 +1,4 @@
-use crate::models::escrow::Escrows;
+use crate::models::escrow::{EscrowState, Escrows};
 use crate::{AppState, models::escrow::UpdatedEscrow};
 use anyhow::Result;
 use anyhow::anyhow;
@@ -6,7 +6,6 @@ use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
 };
-use chrono::Duration;
 use chrono::TimeZone;
 use chrono::Utc;
 use serde_json::json;
@@ -16,21 +15,21 @@ use sqlx::{PgPool, Row, types::Json as SqlxJson};
 pub async fn create_escrow(
     Extension(state): Extension<AppState>,
     Path(address): Path<String>,
-    Json(mut new_escrow): Json<Escrows>,
+    Json(new_escrow): Json<EscrowState>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
     println!(
         "📩 Incoming request to create escrow for address: {}",
         address
     );
     println!("🧾 New escrow data received: {:?}", new_escrow);
-    let now = Utc::now().naive_utc();
-    new_escrow.created_at = now;
-    new_escrow.expires_at = now + Duration::hours(24); // 🕒 configurable expiry
-    new_escrow.expired = false;
+    // let now = Utc::now().naive_utc();
+    // new_escrow.created_at = now;
+    // new_escrow.expires_at = now + Duration::hours(24); // 🕒 configurable expiry
+    // new_escrow.expired = false;
     // Step 1: Fetch current escrows
 
     println!("🔍 Fetching existing escrows for user: {}", address);
-    let existing: Result<(sqlx::types::Json<Vec<Escrows>>,), sqlx::Error> =
+    let existing: Result<(sqlx::types::Json<Vec<EscrowState>>,), sqlx::Error> =
         sqlx::query_as(r#"SELECT escrows FROM users WHERE address = $1"#)
             .bind(&address)
             .fetch_one(&state.db)

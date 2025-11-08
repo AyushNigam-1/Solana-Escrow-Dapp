@@ -56,23 +56,23 @@ const page = () => {
     });
     console.log("Fetched Escrows:", data);
     interface ExchangeParams {
-        seedHex?: string;
+        uniqueSeed: string;
         escrowPDA: string;
         initializerKey: string;
         depositTokenMint: string,
-        receiveTokenMint: object,
+        receiveTokenMint: string,
     }
     interface EscrowData {
-        seedHex: string;
+        uniqueSeed: string;
         initializerDepositTokenAccount: string;
-        publicKey: string;
+        escrowPda: PublicKey;
         tokenAMintAddress: string;
     }
     const queryClient = useQueryClient();
     const { mutate: exchange, isPending: isExchanging } = useMutation({
         // The mutationFn takes the single ExchangeParams object from the mutate() call.
         mutationFn: async (params: ExchangeParams) => {
-            setPendingId(params.seedHex!)
+            setPendingId(params.uniqueSeed!)
 
             return await contractActions.exchangeEscrow(
                 new PublicKey(params.escrowPDA),
@@ -85,7 +85,7 @@ const page = () => {
             setPendingId(null);
             mutate({ address: publicKey?.toString()!, updatedEscrow: { escrow_pda: data, status: "Completed" } })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
-                return escrows ? escrows.filter(escrow => escrow.publicKey !== data) : [];
+                return escrows ? escrows.filter(escrow => escrow.account.initializerKey.toBase58() !== data) : [];
             });
         },
         onError: (error) => {
@@ -97,19 +97,20 @@ const page = () => {
     });
     const { mutate: cancel, isPending } = useMutation({
         mutationFn: async (escrow: EscrowData) => {
-            setPendingId(escrow.seedHex)
+            console.log(escrow)
+            setPendingId(escrow.uniqueSeed.toString())
             return await contractActions.cancelEscrow(
-                Buffer.from(escrow.seedHex, 'hex'),
+                Buffer.from(escrow.uniqueSeed),
                 new PublicKey(escrow.initializerDepositTokenAccount),
                 new PublicKey(escrow.tokenAMintAddress),
-                new PublicKey(escrow.publicKey)
+                new PublicKey(escrow.escrowPda)
             );
         },
         onSuccess: (data) => {
             setPendingId(null);
             mutate({ address: publicKey?.toString()!, updatedEscrow: { escrow_pda: data, status: "Cancelled" } })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
-                return escrows ? escrows.filter(escrow => escrow.publicKey !== data) : [];
+                return escrows ? escrows.filter(escrow => escrow.account.initializerKey.toBase58() !== data) : [];
             });
         },
         onError: (error) => {
@@ -130,7 +131,7 @@ const page = () => {
                 escrow.tokenB.metadata.symbol.toLowerCase().includes(lowerCaseQuery) ||
                 escrow.tokenA.metadata.mintAddress.toLowerCase().includes(lowerCaseQuery) ||
                 escrow.tokenB.metadata.mintAddress.toLowerCase().includes(lowerCaseQuery) ||
-                escrow.initializerKey.toLowerCase().includes(lowerCaseQuery)
+                escrow.account.initializerKey.toBase58().toLowerCase().includes(lowerCaseQuery)
             );
         });
     }, [data, searchQuery]);
@@ -172,7 +173,7 @@ const page = () => {
                 ) : // 2. Handle Error state if fetching failed
                     isQueryError ? (
                         <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
-                    ) : (filteredData?.length != 0) ? filteredData?.map((escrow: any, index: any) => (
+                    ) : (filteredData?.length != 0) ? filteredData?.map((escrow: Escrow, index: any) => (
                         <div key={index} className="p-4 rounded-2xl bg-white/5 space-y-4">
                             <div className='flex justify-between items-end' >
                                 <div className='flex flex-col gap-2' >
@@ -211,13 +212,13 @@ const page = () => {
                             <div className='h-0.5 bg-gray-600 w-full' ></div>
                             <div>
                                 <p className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>Creator:-</p>
-                                <p className='line-clamp-1'>{publicKey == escrow.initializerKey ? `You (${escrow.initializerKey.slice(0, 25) + "...)"}` : escrow.initializerKey.slice(0, 25) + "..."}</p>
+                                <p className='line-clamp-1'>{publicKey?.toString() == escrow.account.initializerKey.toString() ? `You (${escrow.account.initializerKey.toBase58().slice(0, 25) + "...)"}` : escrow.account.initializerKey.toBase58().slice(0, 25) + "..."}</p>
                                 {/* <p className='line-clamp-1'>{escrow.mint.slice(0, 25)}...</p> */}
                                 {/* <p className='text-xl line-clamp-2' >{token.description}</p> */}
                             </div>
                             {
-                                publicKey == escrow.initializerKey ?
-                                    <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancel({ seedHex: escrow.seedHex, initializerDepositTokenAccount: escrow.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, publicKey: escrow.publicKey })}> {(pendingId == escrow.seedHex && isPending) ? <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                publicKey?.toString() == escrow.account.initializerKey.toString() ?
+                                    <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancel({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: escrow.account.initializerDepositTokenAccount.toBase58(), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isPending) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
@@ -225,8 +226,10 @@ const page = () => {
                                     </svg>
                                         Cancel</>} </button>
                                     : <>
-                                        <button className='p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center w-full' onClick={() => exchange({ seedHex: escrow.seedHex, initializerKey: escrow.initializerKey, escrowPDA: escrow.publicKey, depositTokenMint: escrow.tokenA.metadata.mintAddress, receiveTokenMint: escrow.tokenB.metadata.mintAddress })} >
-                                            {(pendingId == escrow.seedHex && isExchanging) ? <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <button className='p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center w-full'
+                                            onClick={() => exchange({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerKey: escrow.account.initializerKey.toBase58(), escrowPDA: escrow.publicKey.toString(), depositTokenMint: escrow.tokenA.metadata.mintAddress, receiveTokenMint: escrow.tokenB.metadata.mintAddress })}
+                                        >
+                                            {(pendingId == escrow.account.uniqueSeed.toString() && isExchanging) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg> : <>

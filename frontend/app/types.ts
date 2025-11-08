@@ -62,10 +62,8 @@ interface TokenMetadata {
 
 
 export interface Escrow {
-    publicKey: string;
-    bump: number;
-    seedHex: string;
-    initializerKey: string;
+    publicKey: PublicKey;
+    account: EscrowState;
     tokenA: { // Initializer Deposit Token (Token A)
         amount: string;
         metadata: TokenMetadata;
@@ -74,6 +72,4 @@ export interface Escrow {
         amount: string;
         metadata: TokenMetadata;
     };
-    initializerReceiveTokenAccount: string;
-    initializerDepositTokenAccount: string;
 }
