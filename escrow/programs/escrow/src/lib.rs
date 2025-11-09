@@ -1,13 +1,10 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{self, CloseAccount, Mint, TokenAccount, TokenInterface, TransferChecked};  // ← FIXED: token_interface for dynamic
-// Import the official program IDs for dynamic checking
+use anchor_spl::token_interface::{self, CloseAccount, Mint, TokenAccount, TokenInterface, TransferChecked}; 
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use spl_token_2022::ID as TOKEN_2022_PROGRAM_ID;
 
-// The Program ID must be updated in Anchor.toml after running anchor build once
-declare_id!("BU8Hen9NE5zpHGP4hkP3xHZ7BndYUWViqr7TQc2SYfyr");
+declare_id!("7LbBHo3GD4ZJDiGAuK3uZKEzhvKXFhuJ4UFiZP1T7tJ7");
 
-// Define the PDA seed constant for generating the Escrow account address
 const ESCROW_PDA_SEED: &[u8] = b"escrow";
 
 #[event]
@@ -361,7 +358,7 @@ pub struct EscrowState {
 
 // Space calculation: 
 // 8 (discriminator) + 32*4 (Pubkeys) + 8*2 (u64 amounts) + 8 (unique_seed) + 1 (bump) = 161 bytes.
-const ESCROW_ACCOUNT_SPACE: usize = 8 + 32 * 5 + 8 * 2 + 8 + 1; 
+const ESCROW_ACCOUNT_SPACE: usize = 201; 
 
 // ----------------------------------------------------------------
 // ACCOUNT STRUCTS

@@ -17,7 +17,7 @@ pub async fn create_user(state: &AppState, address: &str) -> Result<String, Stat
     );
 
     let user = sqlx::query_as::<_, User>(
-        "INSERT INTO users (address, escrows) VALUES ($1, $2) RETURNING address",
+        "INSERT INTO users (address, escrows) VALUES ($1, $2) RETURNING address , escrows",
     )
     .bind(address)
     .bind(sqlx::types::Json(Vec::<Escrows>::new()))

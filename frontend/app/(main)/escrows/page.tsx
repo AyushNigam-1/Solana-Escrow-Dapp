@@ -15,7 +15,7 @@ const page = () => {
     const contractActions = useEscrowActions();
     const [pendingId, setPendingId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState<string | null>("")
-    const API_BASE = "http://localhost:3000"
+    const API_BASE = "http://127.0.0.1:3000"
 
     const { mutate } = useMutation({
         mutationFn: async ({
@@ -63,6 +63,7 @@ const page = () => {
         receiveTokenMint: string,
     }
     interface EscrowData {
+        // initializerKey: string;
         uniqueSeed: string;
         initializerDepositTokenAccount: string;
         escrowPda: PublicKey;
@@ -71,9 +72,8 @@ const page = () => {
     const queryClient = useQueryClient();
     const { mutate: exchange, isPending: isExchanging } = useMutation({
         // The mutationFn takes the single ExchangeParams object from the mutate() call.
-        mutationFn: async (params: ExchangeParams) => {
+        mutationFn: async (params: ExchangeParams): Promise<{ escrow_pda: string; initializerKey: string; }> => {
             setPendingId(params.uniqueSeed!)
-
             return await contractActions.exchangeEscrow(
                 new PublicKey(params.escrowPDA),
                 new PublicKey(params.initializerKey),
@@ -81,11 +81,12 @@ const page = () => {
                 new PublicKey(params.receiveTokenMint),
             )
         },
-        onSuccess: (data: string) => {
+        onSuccess: (data: { escrow_pda: string, initializerKey: string }) => {
             setPendingId(null);
-            mutate({ address: publicKey?.toString()!, updatedEscrow: { escrow_pda: data, status: "Completed" } })
+            console.log("data", data)
+            mutate({ address: data.initializerKey, updatedEscrow: { escrow_pda: data.escrow_pda, status: "Completed" } })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
-                return escrows ? escrows.filter(escrow => escrow.account.initializerKey.toBase58() !== data) : [];
+                return escrows ? escrows.filter(escrow => escrow.account.initializerKey.toBase58() !== data.escrow_pda) : [];
             });
         },
         onError: (error) => {
@@ -95,9 +96,10 @@ const page = () => {
             throw new Error(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error during exchange.'}`);
         },
     });
-    const { mutate: cancel, isPending } = useMutation({
+
+
+    const { mutate: cancel, isPending: isCancelling } = useMutation({
         mutationFn: async (escrow: EscrowData) => {
-            console.log(escrow)
             setPendingId(escrow.uniqueSeed.toString())
             return await contractActions.cancelEscrow(
                 Buffer.from(escrow.uniqueSeed),
@@ -175,30 +177,27 @@ const page = () => {
                         <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
                     ) : (filteredData?.length != 0) ? filteredData?.map((escrow: Escrow, index: any) => (
                         <div key={index} className="p-4 rounded-2xl bg-white/5 space-y-4">
-                            <div className='flex justify-between items-end' >
+                            <div className='flex justify-between items-center' >
                                 <div className='flex flex-col gap-2' >
-                                    <div className='flex gap-1 '>
-                                        <img src={escrow.tokenA.metadata.image} className='w-5' alt="" />
-                                        <p className='text-gray-400'>{escrow.tokenA.metadata.name.split(" ").slice(0, 1).join(" ")}...</p>
-                                    </div>
+
                                     <div className='flex items-end'>
                                         <h2 className='text-4xl ' >
                                             {numeral(escrow.tokenA.amount).format('0a')}
                                         </h2>
-                                        <h2 className='text-2xl mx-2 text-gray-300' >
+                                        <h2 className='text-2xl mx-2 text-gray-300 ' >
                                             {escrow.tokenA.metadata.symbol}
                                         </h2>
+                                    </div>
+                                    <div className='flex gap-1 bg-white/20 p-0.5 rounded-xl justify-center'>
+                                        <img src={escrow.tokenA.metadata.image} className='w-5' alt="" />
+                                        <p className='text-gray-300 text-sm'>{escrow.tokenA.metadata.name}</p>
                                     </div>
                                 </div>
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-8 rotate-90">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
                                 </svg>
                                 <div className='flex flex-col gap-2' >
-                                    <div className='flex gap-1'>
-                                        {/* <p className='text-gray-400'>{escrow.tokenB.metadata.name.split(" ").slice(0, 2).join(" ")}...</p> */}
-                                        <img src={escrow.tokenB.metadata.image} className='w-5' alt="" />
-                                        <p className='text-gray-400 '>Solfire</p>
-                                    </div>
+
                                     <div className='flex items-end'>
                                         <h2 className='text-4xl' >
                                             {numeral(escrow.tokenA.amount).format('0a')}
@@ -206,6 +205,11 @@ const page = () => {
                                         <h2 className='text-2xl mx-2 text-gray-300' >
                                             {escrow.tokenB.metadata.symbol}
                                         </h2>
+                                    </div>
+                                    <div className='flex gap-1 bg-white/20 p-0.5 rounded-xl justify-center'>
+                                        {/* <p className='text-gray-400'>{escrow.tokenB.metadata.name.split(" ").slice(0, 2).join(" ")}...</p> */}
+                                        <img src={escrow.tokenB.metadata.image} className='w-5' alt="" />
+                                        <p className='text-gray-300 text-sm'>Solfire</p>
                                     </div>
                                 </div>
                             </div>
@@ -218,7 +222,7 @@ const page = () => {
                             </div>
                             {
                                 publicKey?.toString() == escrow.account.initializerKey.toString() ?
-                                    <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancel({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: escrow.account.initializerDepositTokenAccount.toBase58(), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isPending) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancel({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: escrow.account.initializerDepositTokenAccount.toBase58(), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isCancelling) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">

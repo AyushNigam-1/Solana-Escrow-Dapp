@@ -91,8 +91,8 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
             );
         },
         onSuccess: (data) => {
-            console.log("✅ Escrow Initialized Successfully! PDA:", data.escrowStatePDA.toBase58());
-            mutate({ address, escrow: data.eventData })
+            // console.log("✅ Escrow Initialized Successfully! PDA:", data.escrowStatePDA.toBase58());
+            mutate({ address, escrow: { ...data.eventData, status: "Pending", escrowKey: data.escrowStatePDA } })
             queryClient.invalidateQueries({ queryKey: ['AllEscrows'] });
         },
 

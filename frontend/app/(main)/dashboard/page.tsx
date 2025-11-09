@@ -124,13 +124,13 @@ const page = () => {
                     <img src={token.image} className='w-14 rounded-full' alt="" />
                     <div>
                       <h3 className='text-2xl font-bold line-clamp-1'>{token.name}</h3>
-                      <p className='text-gray-300'>{token.amount} Units</p>
+                      <p className='text-gray-300'>{token.mint.slice(0, 25)}...  </p>
                     </div>
                   </div>
                   <div className='h-0.5 bg-gray-600 w-full' ></div>
                   <div>
-                    <p className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>Mint Address</p>
-                    <p className='line-clamp-1'>{token.mint.slice(0, 25)}...</p>
+                    <p className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>Balance</p>
+                    <p className='line-clamp-1 text-xl font-bold'>{token.amount} Units</p>
                   </div>
                   <button className='p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center' onClick={() => { setOpen(true); setMintAddress(token.mint) }} >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">

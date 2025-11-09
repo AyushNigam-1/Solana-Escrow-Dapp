@@ -34,7 +34,7 @@ export interface UseUserTokenAccountsHook {
     error: string | null;
     refresh: () => void;
 }
-
+// BU8Hen9NE5zpHGP4hkP3xHZ7BndYUWViqr7TQc2SYfyr
 export interface EscrowState {
     initializerKey: PublicKey;
     initializerDepositTokenMint: PublicKey;
@@ -44,6 +44,7 @@ export interface EscrowState {
     initializerReceiveTokenAccount: PublicKey;
     initializerDepositTokenAccount: PublicKey;
     uniqueSeed: number[]; // Anchor decodes [u8; 8] as number[]
+    expiresAt: anchor.BN;        // ← ADD THIS: i64 → BN (signed)
     bump: number;
 }
 

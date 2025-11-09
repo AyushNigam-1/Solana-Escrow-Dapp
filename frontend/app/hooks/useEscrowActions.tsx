@@ -29,7 +29,7 @@ export const useEscrowActions = () => {
                 console.warn("Program not loaded; returning empty escrow list.");
                 return [];
             }
-            const allEscrowAccounts = await (program.account as any).escrowState.all() as EscrowAccount[];
+            const allEscrowAccounts = await (program.account as any).escrowState.all()
             const enhancedEscrows: Escrow[] = [];
 
             for (const escrow of allEscrowAccounts) {
@@ -97,7 +97,7 @@ export const useEscrowActions = () => {
         if (!program || !publicKey) {
             throw new Error("Wallet not connected or program not loaded.");
         }
-
+        // console.log(PROGRAM_ID.toString())
         const initializerKey = anchorWallet?.publicKey!;
 
         // --- STEP 1: DYNAMIC TOKEN PROGRAM DETECTION (NO HARDCODED GUARDRAIL) ---
@@ -217,7 +217,7 @@ export const useEscrowActions = () => {
 
         try {
             // 2. Build the transaction instruction
-            const tx = await program!.methods
+            await program!.methods
                 .cancel()
                 .accounts({
                     initializer: initializerKey,
@@ -244,7 +244,7 @@ export const useEscrowActions = () => {
         initializerKey: PublicKey,
         depositTokenMint: PublicKey, // Mint A (initializer_deposit_mint)
         receiveTokenMint: PublicKey, // Mint B (taker_expected_mint)
-    ): Promise<string> {
+    ): Promise<{ escrow_pda: string; initializerKey: string; }> {
         const takerKey = anchorWallet?.publicKey;
 
         if (!takerKey) {
@@ -316,7 +316,7 @@ export const useEscrowActions = () => {
                 .rpc();
 
             console.log("Escrow exchange successful! Transaction:", tx);
-            return escrowPDA.toBase58();
+            return { escrow_pda: escrowPDA.toBase58(), initializerKey: initializerKey.toBase58() };
 
         } catch (error) {
             console.error("Failed to execute escrow exchange:", error);

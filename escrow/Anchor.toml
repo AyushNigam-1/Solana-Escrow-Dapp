@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-escrow = "BU8Hen9NE5zpHGP4hkP3xHZ7BndYUWViqr7TQc2SYfyr"
+escrow = "7LbBHo3GD4ZJDiGAuK3uZKEzhvKXFhuJ4UFiZP1T7tJ7"
 
 [registry]
 url = "https://api.apr.dev"

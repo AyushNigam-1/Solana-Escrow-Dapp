@@ -22,12 +22,6 @@ pub async fn create_escrow(
         address
     );
     println!("🧾 New escrow data received: {:?}", new_escrow);
-    // let now = Utc::now().naive_utc();
-    // new_escrow.created_at = now;
-    // new_escrow.expires_at = now + Duration::hours(24); // 🕒 configurable expiry
-    // new_escrow.expired = false;
-    // Step 1: Fetch current escrows
-
     println!("🔍 Fetching existing escrows for user: {}", address);
     let existing: Result<(sqlx::types::Json<Vec<EscrowState>>,), sqlx::Error> =
         sqlx::query_as(r#"SELECT escrows FROM users WHERE address = $1"#)
@@ -113,21 +107,21 @@ pub async fn update_escrow(
     Path(address): Path<String>,
     Json(updated_escrow): Json<UpdatedEscrow>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
-    let existing: Result<(sqlx::types::Json<Vec<Escrows>>,), sqlx::Error> =
+    println!("Updating escrow");
+    let existing: Result<(sqlx::types::Json<Vec<EscrowState>>,), sqlx::Error> =
         sqlx::query_as(r#"SELECT escrows FROM users WHERE address = $1"#)
             .bind(&address)
             .fetch_one(&state.db)
             .await;
-
+    println!("found escrows");
     let mut escrows = match existing {
         Ok((sqlx::types::Json(current),)) => current,
         Err(sqlx::Error::RowNotFound) => return Err(StatusCode::NOT_FOUND),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
-
     if let Some(escrow) = escrows
         .iter_mut()
-        .find(|e| e.escrow_pda == updated_escrow.escrow_pda)
+        .find(|e| e.escrow_key == updated_escrow.escrow_pda)
     {
         escrow.status = updated_escrow.status.clone();
     } else {
@@ -157,13 +151,13 @@ pub async fn update_escrow(
 pub async fn get_escrows(
     Extension(state): Extension<AppState>,
     Path(address): Path<String>,
-) -> Result<Json<Vec<Escrows>>, StatusCode> {
+) -> Result<Json<Vec<EscrowState>>, StatusCode> {
     println!(
         "📩 Incoming request to get escrows for address: {}",
         address
     );
     // Perform the query
-    let escrows = sqlx::query_as::<_, (sqlx::types::Json<Vec<Escrows>>,)>(
+    let escrows = sqlx::query_as::<_, (sqlx::types::Json<Vec<EscrowState>>,)>(
         r#"SELECT escrows FROM "users" WHERE address = $1"#,
     )
     .bind(&address)
