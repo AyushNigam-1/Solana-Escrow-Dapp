@@ -90,9 +90,9 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
                 expectedMintPK
             );
         },
-        onSuccess: (data) => {
-            // console.log("✅ Escrow Initialized Successfully! PDA:", data.escrowStatePDA.toBase58());
-            mutate({ address, escrow: { ...data.eventData, status: "Pending", escrowKey: data.escrowStatePDA } })
+        onSuccess: ({ account, publicKey }) => {
+            console.log("✅ Escrow Initialized Successfully! PDA:", account);
+            mutate({ address, escrow: { account, status: "Pending", publicKey } })
             queryClient.invalidateQueries({ queryKey: ['AllEscrows'] });
         },
 
@@ -130,7 +130,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
                 onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
             >
                 <div className=" dark:border-gray-700 flex justify-between items-center ">
-                    <h2 className="text-2xl font-bold text-white ">Create Escrow</h2>
+                    <h2 className="text-2xl font-bold text-white ">Create Deal</h2>
                     <button
                         onClick={handleClose}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"

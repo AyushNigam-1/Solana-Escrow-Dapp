@@ -9,18 +9,18 @@ const ESCROW_PDA_SEED: &[u8] = b"escrow";
 
 #[event]
 pub struct InitializeEvent {
-    pub initializer_key: Pubkey,
-    pub initializer_deposit_token_account: Pubkey,
-    pub initializer_deposit_token_mint: Pubkey,
-    pub taker_expected_token_mint: Pubkey,
-    pub initializer_amount: u64,
-    pub taker_expected_amount: u64,
-    pub initializer_receive_token_account: Pubkey,
+    pub initializer_key: String,
+    pub initializer_deposit_token_account: String,
+    pub initializer_deposit_token_mint: String,
+    pub taker_expected_token_mint: String,
+    pub initializer_amount:String,
+    pub taker_expected_amount: String,
+    pub initializer_receive_token_account: String,
     pub unique_seed: [u8; 8],
     pub expires_at: i64,
     pub bump: u8,
-    pub escrow_pda: Pubkey,
-    pub vault_account: Pubkey,
+    pub escrow_pda: String,
+    pub vault_account: String,
 }
 
 #[event]
@@ -120,18 +120,18 @@ pub mod escrow {
     // Optional: Track unique active users
     // global_stats.last_active_user = ctx.accounts.initializer.key();
        emit!(InitializeEvent {
-        initializer_key: ctx.accounts.initializer.key(),
-        initializer_deposit_token_account: ctx.accounts.initializer_deposit_token_account.key(),
-        initializer_deposit_token_mint: ctx.accounts.initializer_deposit_token_mint.key(),
-        taker_expected_token_mint: ctx.accounts.taker_expected_token_mint.key(),
-        initializer_amount,
-        taker_expected_amount,
-        initializer_receive_token_account: ctx.accounts.initializer_receive_token_account.key(),
+        initializer_key: ctx.accounts.initializer.key().to_string(),
+        initializer_deposit_token_account: ctx.accounts.initializer_deposit_token_account.key().to_string(),
+        initializer_deposit_token_mint: ctx.accounts.initializer_deposit_token_mint.key().to_string(),
+        taker_expected_token_mint: ctx.accounts.taker_expected_token_mint.key().to_string(),
+        initializer_amount: initializer_amount.to_string(),
+        taker_expected_amount: taker_expected_amount.to_string(),
+        initializer_receive_token_account: ctx.accounts.initializer_receive_token_account.key().to_string(),
         unique_seed,
         expires_at,
         bump: ctx.bumps.escrow_state,
-        escrow_pda: ctx.accounts.escrow_state.key(),
-        vault_account: ctx.accounts.vault_account.key(),
+        escrow_pda: ctx.accounts.escrow_state.key().to_string(),
+        vault_account: ctx.accounts.vault_account.key().to_string(),
     });
 
         Ok(())

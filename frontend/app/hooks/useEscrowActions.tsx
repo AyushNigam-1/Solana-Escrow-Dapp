@@ -97,10 +97,8 @@ export const useEscrowActions = () => {
         if (!program || !publicKey) {
             throw new Error("Wallet not connected or program not loaded.");
         }
-        // console.log(PROGRAM_ID.toString())
         const initializerKey = anchorWallet?.publicKey!;
 
-        // --- STEP 1: DYNAMIC TOKEN PROGRAM DETECTION (NO HARDCODED GUARDRAIL) ---
         const depositTokenProgramId = await getMintProgramId(initializerDepositMint);
         const receiveTokenProgramId = await getMintProgramId(takerExpectedMint);
 
@@ -112,7 +110,6 @@ export const useEscrowActions = () => {
 
         const tokenProgramToUse = depositTokenProgramId;
 
-        // --- STEP 2: Generate nonce and compute PDA ---
         const uniqueSeed = generateUniqueSeed();
         const escrowStatePDA = getEscrowStatePDA(initializerKey, uniqueSeed);
 
@@ -156,12 +153,12 @@ export const useEscrowActions = () => {
                 });
 
             console.log("✅ Escrow Initialized! Sig:", txSignature);
-            const eventData = await getEventsFromSignature(txSignature, "initializeEvent");
-            console.log(eventData)
-            if (!eventData) {
+            const account = await getEventsFromSignature(txSignature, "initializeEvent");
+            console.log(account)
+            if (!account) {
                 console.warn("Event data not found in confirmed transaction. Check program logs.");
             }
-            return { tx: txSignature, escrowStatePDA, eventData };
+            return { tx: txSignature, publicKey: escrowStatePDA.toBase58(), account };
 
         } catch (error: any) {
             console.error("Error initializing escrow:", error);
@@ -326,29 +323,40 @@ export const useEscrowActions = () => {
     const userEscrows = async () => {
         console.log(publicKey)
         const { data } = await axios.get(`${API_BASE}/api/escrows/${publicKey}`)
-        const escrows: any = []
+        const escrows: Escrow[] = []
         console.log("data", data, "data")
-        for (const escrow of data) {
-            const [tokenAMetadata, tokenBMetadata] = await Promise.all([
-                fetchTokenMetadata(new PublicKey(escrow.accept_mint)),
-                fetchTokenMetadata(new PublicKey(escrow.offer_mint))
-            ]);
+        try {
+            for (const { account, publicKey, status } of data) {
+                const [tokenAMetadata, tokenBMetadata] = await Promise.all([
+                    fetchTokenMetadata(new PublicKey(account.initializerDepositTokenMint)),
+                    fetchTokenMetadata(new PublicKey(account.takerExpectedTokenMint))
+                ]);
 
-            escrows.push({
-                publicKey: escrow.escrow_pda,
-                tokenA: {
-                    amount: escrow.offer_amount,
-                    metadata: tokenAMetadata,
-                },
-                tokenB: {
-                    amount: escrow.offer_mint,
-                    metadata: tokenBMetadata,
-                },
-                stauts: escrow.status
-            })
-        };
-        console.log(escrows)
-        return (escrows)
+                const initialAmount = account.initializerAmount.toString(10);
+                const expectedAmount = account.takerExpectedAmount.toString(10);
+
+                const enhancedEscrow: Escrow = {
+                    status,
+                    publicKey,
+                    account,
+                    tokenA: {
+                        amount: initialAmount,
+                        metadata: tokenAMetadata,
+                    },
+                    tokenB: {
+                        amount: expectedAmount,
+                        metadata: tokenBMetadata,
+                    },
+                };
+                escrows.push(enhancedEscrow)
+            };
+
+        }
+        catch (error) {
+            console.log("some error ", error)
+        }
+        console.log("escrows", escrows)
+        return escrows
     }
     return { initializeEscrow, fetchAllEscrows, cancelEscrow, exchangeEscrow, userEscrows };
 }

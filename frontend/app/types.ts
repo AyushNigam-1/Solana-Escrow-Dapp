@@ -36,18 +36,24 @@ export interface UseUserTokenAccountsHook {
 }
 // BU8Hen9NE5zpHGP4hkP3xHZ7BndYUWViqr7TQc2SYfyr
 export interface EscrowState {
-    initializerKey: PublicKey;
-    initializerDepositTokenMint: PublicKey;
-    takerExpectedTokenMint: PublicKey;
-    initializerAmount: anchor.BN; // Use BN for u64
-    takerExpectedAmount: anchor.BN; // Use BN for u64
-    initializerReceiveTokenAccount: PublicKey;
-    initializerDepositTokenAccount: PublicKey;
+    initializerKey: string;
+    initializerDepositTokenMint: string;
+    takerExpectedTokenMint: string;
+    initializerAmount: string; // Use BN for u64
+    takerExpectedAmount: string; // Use BN for u64
+    initializerReceiveTokenAccount: string;
+    initializerDepositTokenAccount: string;
     uniqueSeed: number[]; // Anchor decodes [u8; 8] as number[]
     expiresAt: anchor.BN;        // ← ADD THIS: i64 → BN (signed)
     bump: number;
 }
-
+export interface EscrowData {
+    // initializerKey: string;
+    uniqueSeed: string;
+    initializerDepositTokenAccount: string;
+    escrowPda: PublicKey;
+    tokenAMintAddress: string;
+}
 // Define the structure of the fetched account data
 export interface EscrowAccount {
     publicKey: PublicKey;
@@ -63,6 +69,7 @@ interface TokenMetadata {
 
 
 export interface Escrow {
+    status?: string,
     publicKey: PublicKey;
     account: EscrowState;
     tokenA: { // Initializer Deposit Token (Token A)

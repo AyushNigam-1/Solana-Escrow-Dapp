@@ -4,6 +4,44 @@ import { FullTokenMetadata, OffChainMetadata, UserTokenAccount } from "../types"
 
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
+export async function fetchTokenMetadata(
+    mintAddress: PublicKey,
+): Promise<FullTokenMetadata> {
+    const programId = await getMintProgramId(mintAddress);
+    const onChainMetadata = await getTokenMetadata(
+        connection,
+        mintAddress,
+        "confirmed",
+        programId
+    );
+
+    if (!onChainMetadata) {
+        throw new Error(`Metadata not found for mint: ${mintAddress.toBase58()}`);
+    }
+
+    let offChainData: OffChainMetadata = { name: onChainMetadata.name, symbol: onChainMetadata.symbol, description: "", image: "" };
+
+    try {
+        const response = await fetch(onChainMetadata.uri);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch metadata from URI: ${onChainMetadata.uri} (Status: ${response.status})`);
+        }
+        offChainData = await response.json();
+    } catch (e) {
+        console.warn(`Could not fetch or parse off-chain metadata from URI: ${onChainMetadata.uri}. Falling back to on-chain data. Error:`, e);
+    }
+
+    // 3. Combine and return
+    return {
+        name: onChainMetadata.name,
+        symbol: onChainMetadata.symbol,
+        uri: onChainMetadata.uri,
+        description: offChainData.description || "",
+        image: offChainData.image || "", // Use a placeholder if image is missing
+        mintAddress: mintAddress.toBase58(),
+    };
+}
+
 export const ensureATA = async (mint: PublicKey, publicKey: PublicKey, sendTransaction: any): Promise<PublicKey> => {
     const owner = publicKey!; // Connected wallet PK
 
@@ -146,43 +184,7 @@ export const generateUniqueSeed = (): Buffer => {
     return Buffer.from(buffer);
 };
 
-export async function fetchTokenMetadata(
-    mintAddress: PublicKey,
-): Promise<FullTokenMetadata> {
-    const programId = await getMintProgramId(mintAddress);
-    const onChainMetadata = await getTokenMetadata(
-        connection,
-        mintAddress,
-        "confirmed",
-        programId
-    );
 
-    if (!onChainMetadata) {
-        throw new Error(`Metadata not found for mint: ${mintAddress.toBase58()}`);
-    }
-
-    let offChainData: OffChainMetadata = { name: onChainMetadata.name, symbol: onChainMetadata.symbol, description: "", image: "" };
-
-    try {
-        const response = await fetch(onChainMetadata.uri);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch metadata from URI: ${onChainMetadata.uri} (Status: ${response.status})`);
-        }
-        offChainData = await response.json();
-    } catch (e) {
-        console.warn(`Could not fetch or parse off-chain metadata from URI: ${onChainMetadata.uri}. Falling back to on-chain data. Error:`, e);
-    }
-
-    // 3. Combine and return
-    return {
-        name: onChainMetadata.name,
-        symbol: onChainMetadata.symbol,
-        uri: onChainMetadata.uri,
-        description: offChainData.description || "",
-        image: offChainData.image || "", // Use a placeholder if image is missing
-        mintAddress: mintAddress.toBase58(),
-    };
-}
 
 function getProgramIdFromIdentifier(programIdentifier: string): PublicKey | null {
     switch (programIdentifier) {

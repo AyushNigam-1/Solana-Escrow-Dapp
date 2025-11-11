@@ -28,9 +28,10 @@ pub struct Escrows {
     pub expires_at: chrono::NaiveDateTime,
     pub expired: bool,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EscrowState {
+pub struct Account {
     pub initializer_key: String,
     pub initializer_deposit_token_account: String, // <-- ADD THIS
     pub initializer_deposit_token_mint: String,
@@ -41,6 +42,12 @@ pub struct EscrowState {
     pub unique_seed: [u8; 8], // ← FIXED: Added unique seed to state
     pub expires_at: String,
     pub bump: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EscrowState {
+    pub public_key: String,
+    pub account: Account,
     pub status: Status,
-    pub escrow_key: String,
 }

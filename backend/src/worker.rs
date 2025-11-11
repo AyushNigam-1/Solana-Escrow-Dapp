@@ -1,4 +1,4 @@
-use crate::handlers::escrow_handler::get_expired_escrows;
+// use crate::handlers::escrow_handler::get_expired_escrows;
 use crate::models::escrow::Escrows;
 use crate::state::AppState;
 use std::sync::Arc;
@@ -11,27 +11,27 @@ pub async fn run_keeper(state: Arc<AppState>) {
 
     loop {
         ticker.tick().await;
-        if let Err(err) = scan_and_cancel(&state).await {
-            tracing::error!("Keeper error: {:?}", err);
-        }
+        // if let Err(err) = scan_and_cancel(&state).await {
+        //     tracing::error!("Keeper error: {:?}", err);
+        // }
     }
 }
 
-async fn scan_and_cancel(state: &AppState) -> anyhow::Result<()> {
-    // 1. Fetch expired escrows using the separated, internal logic
-    // This call handles the DB query and filtering, returning the full Escrows structs.
-    let escrows: Vec<Escrows> = get_expired_escrows(&state.db).await?;
+// async fn scan_and_cancel(state: &AppState) -> anyhow::Result<()> {
+//     // 1. Fetch expired escrows using the separated, internal logic
+//     // This call handles the DB query and filtering, returning the full Escrows structs.
+//     let escrows: Vec<Escrows> = get_expired_escrows(&state.db).await?;
 
-    if escrows.is_empty() {
-        tracing::info!("✅ No expired escrows found");
-        return Ok(());
-    }
-    // 2. Cancel each expired escrow using the efficient, already-initialized SolanaClient
-    for escrow in escrows {
-        // state.solana.cancel_if_expired(&escrow).await?;
-    }
-    Ok(())
-}
+//     if escrows.is_empty() {
+//         tracing::info!("✅ No expired escrows found");
+//         return Ok(());
+//     }
+//     // 2. Cancel each expired escrow using the efficient, already-initialized SolanaClient
+//     for escrow in escrows {
+//         // state.solana.cancel_if_expired(&escrow).await?;
+//     }
+//     Ok(())
+// }
 
 // async fn scan_and_cancel(state: &AppState) -> anyhow::Result<()> {
 //     // Step 1: Query DB for expired escrows

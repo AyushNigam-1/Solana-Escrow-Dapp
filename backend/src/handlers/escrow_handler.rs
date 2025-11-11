@@ -76,32 +76,32 @@ pub async fn create_escrow(
     }
 }
 
-pub async fn get_expired_escrows(db: &PgPool) -> Result<Vec<Escrows>> {
-    let now = Utc::now().timestamp();
-    let mut expired_escrows = Vec::new();
+// pub async fn get_expired_escrows(db: &PgPool) -> Result<Vec<Escrows>> {
+//     let now = Utc::now().timestamp();
+//     let mut expired_escrows = Vec::new();
 
-    // Fetch all users and their escrows
-    let rows = sqlx::query(r#"SELECT address, escrows FROM users"#)
-        .fetch_all(db)
-        .await
-        .map_err(|e| anyhow!("Database error fetching escrows: {}", e))?;
+//     // Fetch all users and their escrows
+//     let rows = sqlx::query(r#"SELECT address, escrows FROM users"#)
+//         .fetch_all(db)
+//         .await
+//         .map_err(|e| anyhow!("Database error fetching escrows: {}", e))?;
 
-    for row in rows {
-        let escrows_json: SqlxJson<Vec<Escrows>> =
-            row.try_get("escrows").unwrap_or(SqlxJson(vec![]));
+//     for row in rows {
+//         let escrows_json: SqlxJson<Vec<Escrows>> =
+//             row.try_get("escrows").unwrap_or(SqlxJson(vec![]));
 
-        for escrow in escrows_json.0 {
-            // Convert NaiveDateTime to i64 Unix timestamp
-            let expires_timestamp = Utc.from_utc_datetime(&escrow.expires_at).timestamp();
+//         for escrow in escrows_json.0 {
+//             // Convert NaiveDateTime to i64 Unix timestamp
+//             let expires_timestamp = Utc.from_utc_datetime(&escrow.expires_at).timestamp();
 
-            if expires_timestamp <= now {
-                expired_escrows.push(escrow);
-            }
-        }
-    }
+//             if expires_timestamp <= now {
+//                 expired_escrows.push(escrow);
+//             }
+//         }
+//     }
 
-    Ok(expired_escrows)
-}
+//     Ok(expired_escrows)
+// }
 pub async fn update_escrow(
     Extension(state): Extension<AppState>,
     Path(address): Path<String>,
@@ -121,7 +121,7 @@ pub async fn update_escrow(
     };
     if let Some(escrow) = escrows
         .iter_mut()
-        .find(|e| e.escrow_key == updated_escrow.escrow_pda)
+        .find(|e| e.public_key == updated_escrow.escrow_pda)
     {
         escrow.status = updated_escrow.status.clone();
     } else {
