@@ -67,6 +67,13 @@ interface TokenMetadata {
     mintAddress: string;
 }
 
+export interface ExchangeParams {
+    uniqueSeed: string;
+    escrowPDA: string;
+    initializerKey: string;
+    depositTokenMint: string,
+    receiveTokenMint: string,
+}
 
 export interface Escrow {
     status?: string,

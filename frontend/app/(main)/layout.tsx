@@ -1,6 +1,6 @@
 import Navbar from '@/app/components/ui/Navbar';
 import Sidebar from '../components/ui/Sidebar';
-// import Sidebar from '@/components/Sidebar';
+import { Slide, ToastContainer } from 'react-toastify';
 
 export default function AppLayout({ children }: Readonly<{
     children: React.ReactNode;
@@ -17,6 +17,8 @@ export default function AppLayout({ children }: Readonly<{
                     </main>
                 </div>
             </div>
+            <ToastContainer position="top-center" transition={Slide} theme='dark' />
+
         </div>
     );
 }

@@ -1,20 +1,20 @@
 "use client"
 import { useEscrowActions } from '@/app/hooks/useEscrowActions';
+import { useMutations } from '@/app/hooks/useMutations';
 import { useProgram } from '@/app/hooks/useProgram';
-import { Escrow, EscrowData } from '@/app/types';
-import { PublicKey } from '@solana/web3.js';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { Escrow } from '@/app/types';
+import { useQuery } from '@tanstack/react-query';
 import numeral from 'numeral';
 import React, { useMemo, useState } from 'react'
+import { Slide, ToastContainer } from 'react-toastify';
 
 const page = () => {
+
     const { publicKey } = useProgram()
-    const API_BASE = "http://localhost:3000"
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const contractActions = useEscrowActions();
     const [pendingId, setPendingId] = useState<string | null>(null);
-    const queryClient = useQueryClient();
+    const { cancelEscrow, isMutating } = useMutations({ setPendingId })
 
     const {
         data: escrows,
@@ -29,76 +29,7 @@ const page = () => {
         enabled: !!publicKey, // only run when publicKey exists
         retry: 1,
     });
-    const { mutate } = useMutation({
-        mutationFn: async ({
-            address,
-            updatedEscrow,
-        }: {
-            address: string;
-            updatedEscrow: { escrow_pda: string; status: string };
-        }) => {
-            const response = await axios.put(
-                `${API_BASE}/api/escrows/${address}`,
-                updatedEscrow,
-                {
-                    headers: { "Content-Type": "application/json" },
-                }
-            );
-            return response.data;
-        },
-        onSuccess: (data) => {
-            console.log("✅ Escrow updated successfully:", data);
-        },
-        onError: (error) => {
-            console.error("❌ Failed to update escrow:", error);
-        },
-    });
-    const { mutate: cancel, isPending: isCancelling } = useMutation({
-        mutationFn: async (escrow: EscrowData) => {
-            setPendingId(escrow.uniqueSeed.toString())
-            return await contractActions.cancelEscrow(
-                Buffer.from(escrow.uniqueSeed),
-                new PublicKey(escrow.initializerDepositTokenAccount),
-                new PublicKey(escrow.tokenAMintAddress),
-                new PublicKey(escrow.escrowPda)
-            );
-        },
-        onSuccess: (data) => {
-            setPendingId(null);
-            mutate({ address: publicKey?.toString()!, updatedEscrow: { escrow_pda: data, status: "Cancelled" } })
-            queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
-                return escrows ? escrows.filter(escrow => escrow.account.initializerKey !== data) : [];
-            });
-        },
-        onError: (error) => {
-            setPendingId(null);
-            console.error("Escrow cancellation failed:", error);
-        },
-    });
-    console.log(escrows)
-    // const { mutate: cancel, isPending } = useMutation({
-    //     mutationFn: async (escrow: EscrowData) => {
-    //         setPendingId(escrow.seedHex)
-    //         return await contractActions.cancelEscrow(
-    //             Buffer.from(escrow.seedHex, 'hex'),
-    //             new PublicKey(escrow.initializerDepositTokenAccount),
-    //             new PublicKey(escrow.tokenAMintAddress),
-    //             new PublicKey(escrow.publicKey)
-    //         );
-    //     },
-    //     onSuccess: (data) => {
-    //         setPendingId(null);
-    //         mutate({ address: publicKey?.toString()!, updatedEscrow: { escrow_pda: data, status: "Cancelled" } })
-    //         queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
-    //             return escrows ? escrows.filter(escrow => escrow.publicKey !== data) : [];
-    //         });
-    //     },
-    //     onError: (error) => {
-    //         setPendingId(null);
-    //         console.error("Escrow cancellation failed:", error);
-    //     },
-    // });
-    // console.log(escrows)
+
     const filteredData = useMemo(() => {
         if (!searchQuery) {
             console.log("searchQuery", searchQuery)
@@ -161,17 +92,16 @@ const page = () => {
                     isError ? (
                         <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
                     ) :
-                        filteredData?.length != 0 ? <div className="grid grid-cols-12 "> {filteredData?.map((escrow: Escrow, index: any) => (
+                        filteredData?.length != 0 ? <div className="grid grid-cols-12 gap-4"> {filteredData?.map((escrow: Escrow) => (
                             <div className='flex gap-5 flex-col col-span-3 bg-white/5 p-3 rounded-xl' >
                                 <div className='space-y-2 text-center'>
                                     <p className='text-lg font-semibold'>{escrow.tokenA.metadata.name}</p>
                                     <div className='flex gap-2 items-end bg-gray-50/5 p-2 rounded-xl justify-center' >
                                         <img src={escrow.tokenA.metadata.image} className='w-10' alt="" />
-                                        <p className="text-4xl font-semibold text-white leading-none ">{escrow.tokenA.amount.toString()} </p>
+                                        <p className="text-4xl font-semibold text-white leading-none ">{numeral(escrow.tokenA.amount).format('0a')}  </p>
                                         <p className="text-gray-300">{escrow.tokenA.metadata.symbol}</p>
                                     </div>
                                 </div>
-
                                 <div className='flex items-center gap-1 justify-center'>
                                     <hr className="border-t border-gray-600 w-full" />
                                     <span className='p-2 rounded-full bg-white/5'>
@@ -185,13 +115,13 @@ const page = () => {
                                     <p className='font-semibold'>{escrow.tokenB.metadata.name}</p>
                                     <div className='flex gap-2 items-end bg-gray-50/5 p-2 rounded-xl justify-center' >
                                         <img src={escrow.tokenB.metadata.image} className='w-10' alt="" />
-                                        <p className="text-4xl font-semibold text-white leading-none ">{escrow.tokenB.amount.toString()} </p>
+                                        <p className="text-4xl font-semibold text-white leading-none ">{numeral(escrow.tokenB.amount).format('0a')}  </p>
                                         <p className="text-gray-300">{escrow.tokenB.metadata.symbol}</p>
                                     </div>
                                 </div>
                                 {
                                     escrow.status == "Pending" ?
-                                        <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancel({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isCancelling) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancelEscrow.mutate({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
@@ -219,6 +149,8 @@ const page = () => {
                             !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl '>No active escrows found.</p>
                 }
             </div>
+            <ToastContainer position="top-center" transition={Slide} theme='dark' />
+
         </div >
     )
 }

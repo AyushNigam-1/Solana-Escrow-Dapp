@@ -8,14 +8,38 @@ import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { PublicKey } from '@solana/web3.js';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-// --- END MOCK UTILITIES ---
+import { motion, AnimatePresence } from 'framer-motion';
 
+// // --- END MOCK UTILITIES ---
+// const modalVariants = {
+//     hidden: { opacity: 0, y: 50, scale: 0.9 },
+//     visible: {
+//         opacity: 1,
+//         y: 0,
+//         scale: 1,
+//         transition: { type: "spring", stiffness: 300, damping: 25 }
+//     },
+//     exit: {
+//         opacity: 0,
+//         y: 50,
+//         scale: 0.9,
+//         transition: { duration: 0.2 }
+//     }
+// };
+
+// // Animation variants for the backdrop (only opacity change)
+// const backdropVariants = {
+//     hidden: { opacity: 0 },
+//     visible: { opacity: 1 },
+//     exit: { opacity: 0 }
+// };
 // Component props interface
 interface EscrowFormModalProps {
     address: string;
     isOpen: boolean;
     onClose: () => void;
     initializerDepositMint: string;
+    toast: () => void
     // In a real app, you would pass these from the context:
     // initializeEscrow: typeof mockInitializeEscrow; 
     // wallet: useWallet;
@@ -36,7 +60,7 @@ const initialFormState: FormState = {
     takerExpectedMint: '',
 };
 
-export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpen, onClose, initializerDepositMint }) => {
+export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpen, onClose, initializerDepositMint, toast }) => {
     const contractActions = useEscrowActions();
     const [formData, setFormData] = useState<FormState>(initialFormState);
     const [successPDA, setSuccessPDA] = useState<string | null>(null);
@@ -55,6 +79,8 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
         },
         onSuccess: (data) => {
             console.log("✅ Escrow created successfully:", data);
+            handleClose()
+            toast()
         },
         onError: (error) => {
             console.error("❌ Error creating escrow:", error);
@@ -117,7 +143,6 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
         : 'opacity-0 translate-y-4 scale-95 pointer-events-none';
 
     if (!isOpen) return null;
-
 
 
     return (

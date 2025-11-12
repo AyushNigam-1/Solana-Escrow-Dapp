@@ -1,12 +1,9 @@
 "use client"
 import React, { useEffect, useMemo, useState } from 'react'
-import { fetchUserTokenAccounts } from '../../utils/token';
 import Cookies from "js-cookie"
-import { PublicKey } from '@solana/web3.js';
 import { EscrowFormModal } from '../../components/ui/EscrowForm';
-import { useQuery } from '@tanstack/react-query';
 import { useProgram } from '@/app/hooks/useProgram';
-// import { subscribeToEscrowEvents } from '@/app/utils/event';
+import { Slide, ToastContainer, toast } from 'react-toastify';
 
 const page = () => {
   const [mintAddress, setMintAddress] = useState<string>("")
@@ -33,6 +30,7 @@ const page = () => {
       // subscribeToEscrowEvents("InitializeEvent", program)
     }
   }, [program])
+
   const mockData = [
     {
       "tokenAddress": "CVAVeiQfiiuwfTZqcsRbggsf7kYk3hnvK7GsC8ckibpC",
@@ -149,7 +147,10 @@ const page = () => {
           </div>
         )}
       </div>
-      <EscrowFormModal address={publicKey} isOpen={isOpen} onClose={() => setOpen(false)} initializerDepositMint={mintAddress} />
+
+      <EscrowFormModal address={publicKey} isOpen={isOpen} onClose={() => setOpen(false)} initializerDepositMint={mintAddress} toast={() => toast.success("Successfully Created Deal")
+      } />
+      <ToastContainer position="top-center" transition={Slide} theme='dark' />
     </div>
   )
 }

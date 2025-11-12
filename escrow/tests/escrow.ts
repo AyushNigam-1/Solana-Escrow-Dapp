@@ -1,46 +1,59 @@
-import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";  // Token-2022 program ID
-import idl from "../target/idl/escrow.json" with { type: "json" };
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+// import { Escrow } from "../target/types/my_escrow_program"; // <-- ADJUST THIS IMPORT PATH
+import { Escrow } from "../target/types/escrow";
+import * as anchor from "@coral-xyz/anchor"
 
-describe("close-escrow", () => {
+// Seeds must match the Rust program definition: seeds = [b"global-stats"]
+const GLOBAL_STATS_SEED = "global-stats";
+
+describe("GLOBAL_STATS_INITIALIZATION", () => {
+  // Use the default provider (from anchor.toml)
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = new Program(idl as anchor.Idl, provider);
+  // Load the program. Replace Escrow with your program's IDL type name.
+  const program = anchor.workspace.Escrow as Program<Escrow>;
 
-  it("Calls Cancel to Close PDA", async () => {
-    const initializerPubkey = new PublicKey("9apdsHH9APVQ2EqDkPy8BH8LtJ2VtSZngYUzk4jTpbKM");  // Your initializer wallet (owner)
-    const escrowPDA = new PublicKey("CgrMJZ1WFoFbQXdn7ccS4n7SexpfDDnq788ZkT4r6aqr");  // Escrow state PDA (from logs)
+  // The 'admin' key is the wallet defined in your Anchor provider/configuration
+  const admin = provider.wallet.publicKey;
 
-    // Your deposit ATA (from screenshot)
-    const depositATA = new PublicKey("8dxpgH3of3MUh5JfFMSb8fRTZkiphgpuwTZARAq7Tu9o");
+  // Calculate the PDA before the test runs
+  const [globalStatsPDA] = PublicKey.findProgramAddressSync(
+    [Buffer.from(GLOBAL_STATS_SEED)],
+    program.programId
+  );
 
-    // Derive vault ATA (escrow PDA as owner, deposit mint as mint, Token-2022 program)
-    const depositMint = new PublicKey("6p4btTU4ACWJpqT55t9ccmfFruoPJzb1fy7cBSCtaqvo");  // Mint from screenshot
-    // const vaultATA = await getAssociatedTokenAddress(
-    //   depositMint,  // Mint
-    //   escrowPDA,    // Owner (escrow PDA)
-    //   false,        // allowOffCurve
-    //   TOKEN_2022_PROGRAM_ID  // Token-2022
-    // );
-    const vaultATA = new PublicKey("8dxpgH3of3MUh5JfFMSb8fRTZkiphgpuwTZARAq7Tu9o");  // From screenshot
-    console.log("Derived Vault ATA:", vaultATA.toBase58());  // Log for verification
-    const escrowState = await program.account.escrowState.fetch(escrowPDA);
-    console.log("Escrow State Found (Initialized):", JSON.stringify(escrowState, null, 2));
-    // const tx = await program.methods
-    //   .cancel()  // Your cancel method
-    //   .accounts({
-    //     initializer: initializerPubkey,
-    //     initializerDepositTokenAccount: depositATA,  // Deposit ATA from screenshot
-    //     vaultAccount: vaultATA,  // Derived vault ATA
-    //     escrowState: escrowPDA,
-    //     tokenProgram: TOKEN_2022_PROGRAM_ID,  // Token-2022
-    //   })
-    //   .rpc({ commitment: "confirmed" });
+  console.log(`---`);
+  console.log(`Admin Wallet (Payer): ${admin.toBase58()}`);
+  console.log(`GlobalStats PDA (Expected): ${globalStatsPDA.toBase58()}`);
+  console.log(`---`);
 
-    // console.log("Cancel Tx Sig:", tx);
-    // console.log("PDA Closed – Rent refunded. Check Explorer.");
+  it("Initializes the GlobalStats account (if not already done)", async () => {
+    try {
+      console.log("Attempting to initialize GlobalStats...");
+
+      const txSignature = await program.methods
+        // Call the instruction defined in your Rust program
+        .initializeGlobalStats()
+        .accounts({
+          admin: admin,
+          globalStats: globalStatsPDA,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log(`✅ GlobalStats Initialized!`);
+      console.log(`Transaction Signature: ${txSignature}`);
+
+    } catch (error) {
+      // Check if the error is due to the account already being initialized (ProgramError)
+      if (error instanceof Error && error.message.includes("already in use")) {
+        console.log("⚠️ GlobalStats account already initialized. No action taken.");
+      } else {
+        console.error("❌ Failed to initialize GlobalStats:", error);
+        throw error;
+      }
+    }
   });
 });

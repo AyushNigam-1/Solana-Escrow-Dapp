@@ -7,9 +7,11 @@ import {
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { useProgram } from './useProgram';
 import { ensureATA, fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from '@/app/utils/token';
-import { Escrow, EscrowAccount } from '@/app/types';
+import { Escrow } from '@/app/types';
 import axios from 'axios';
 const API_BASE = "http://localhost:3000"
+const GLOBAL_STATS_SEED = "global-stats"; // Must match the program's seed b"global-stats"
+
 const getGlobalStatsPDA = (programId: PublicKey) => {
     const [pda, _] = PublicKey.findProgramAddressSync(
         [Buffer.from("global-stats")],
@@ -120,6 +122,12 @@ export const useEscrowActions = () => {
         // Convert amounts to Anchor's internal BN (BigNumber) format
         const initializerAmountBN = new anchor.BN(initializerAmount);
         const takerExpectedAmountBN = new anchor.BN(takerExpectedAmount);
+
+        const [globalStatsPDA] = PublicKey.findProgramAddressSync(
+            [Buffer.from(GLOBAL_STATS_SEED)],
+            PROGRAM_ID
+        );
+
         const [vaultAccountPDA] = PublicKey.findProgramAddressSync(
             [
                 Buffer.from("vault"),                      // Static seed
@@ -141,6 +149,7 @@ export const useEscrowActions = () => {
                     takerExpectedTokenMint: takerExpectedMint,
                     initializerReceiveTokenAccount: initializerReceiveTokenAccount,
                     escrowState: escrowStatePDA,
+                    globalStats: globalStatsPDA,
                     vaultAccount: vaultAccountPDA,
                     systemProgram: SystemProgram.programId,
                     tokenProgram: tokenProgramToUse,
@@ -167,7 +176,6 @@ export const useEscrowActions = () => {
             }
             throw new Error("Failed to initialize escrow. Check console for details.");
         }
-
     };
     // async function fetchEscrowState(
     //     escrowPda: PublicKey
