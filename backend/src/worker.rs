@@ -1,8 +1,8 @@
 // use crate::handlers::escrow_handler::get_expired_escrows;
-use crate::models::escrow::Escrows;
+// use crate::models::escrow::Escrows;
 use crate::state::AppState;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH}; // Added SystemTime and UNIX_EPOCH
 use tokio::time;
 use tracing;
 pub async fn run_keeper(state: Arc<AppState>) {
@@ -11,69 +11,106 @@ pub async fn run_keeper(state: Arc<AppState>) {
 
     loop {
         ticker.tick().await;
-        // if let Err(err) = scan_and_cancel(&state).await {
-        //     tracing::error!("Keeper error: {:?}", err);
-        // }
+        if let Err(err) = scan_and_cancel(&state).await {
+            tracing::error!("Keeper error: {:?}", err);
+        }
     }
 }
 
-// async fn scan_and_cancel(state: &AppState) -> anyhow::Result<()> {
-//     // 1. Fetch expired escrows using the separated, internal logic
-//     // This call handles the DB query and filtering, returning the full Escrows structs.
-//     let escrows: Vec<Escrows> = get_expired_escrows(&state.db).await?;
+async fn scan_and_cancel(state: &AppState) -> anyhow::Result<()> {
+    // Step 1: Query DB for expired escrows
+    let row = sqlx::query!(
+        r#"
+        SELECT 
+            t.escrow_data AS "escrow_data: sqlx::types::JsonValue"
+        FROM 
+            users, 
+            jsonb_array_elements(users.escrows) AS t(escrow_data)
+        WHERE
+            t.escrow_data IS NOT NULL
+        ORDER BY 
+            -- Order by the nested 'expiresAt' hex string, assuming lexicographical 
+            -- order works for your hex timestamps.
+            t.escrow_data -> 'account' ->> 'expiresAt' ASC
+        LIMIT 1 -- CRITICAL: Only retrieve the single highest-priority candidate
+        "#
+    )
+    .fetch_optional(&state.db) // Use fetch_optional since we expect zero or one row
+    .await?;
 
-//     if escrows.is_empty() {
-//         tracing::info!("✅ No expired escrows found");
-//         return Ok(());
-//     }
-//     // 2. Cancel each expired escrow using the efficient, already-initialized SolanaClient
-//     for escrow in escrows {
-//         // state.solana.cancel_if_expired(&escrow).await?;
-//     }
-//     Ok(())
-// }
+    match row {
+        Some(record) => {
+            let escrow_json = record
+                .escrow_data
+                .expect("SQL record 'escrow_data' was unexpectedly null.");
 
-// async fn scan_and_cancel(state: &AppState) -> anyhow::Result<()> {
-//     // Step 1: Query DB for expired escrows
-//     let rows = sqlx::query!(
-//         r#"
-//         SELECT
-//             (escrows ->> 'escrow_pda') AS escrow_pda,
-//             (escrows ->> 'expires_at')::BIGINT AS expires_at
-//         FROM users, jsonb_array_elements(escrows) AS escrow
-//         WHERE (escrows ->> 'expires_at')::BIGINT < EXTRACT(EPOCH FROM NOW())::BIGINT
-//         "#
-//     )
-//     .fetch_all(&state.db)
-//     .await?;
+            // We also need the Solana pubkey for logging/cancellation
+            let escrow_pubkey = escrow_json
+                .get("pubkey")
+                .and_then(|pk| pk.as_str())
+                .unwrap_or("[Unknown Pubkey]");
 
-//     if rows.is_empty() {
-//         tracing::info!("✅ No expired escrows found");
-//         return Ok(());
-//     }
+            // 1. Safely extract the nested 'expiresAt' hex string
+            let expires_at_hex = escrow_json
+                .get("account")
+                .and_then(|account| account.get("expiresAt"))
+                .and_then(|expires_at| expires_at.as_str())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Escrow {}: Could not find nested 'account.expiresAt' field.",
+                        escrow_pubkey
+                    )
+                })?;
 
-//     // Step 2: Create a fresh Solana client
-//     let solana = SolanaClient::new(&state.rpc_url, &state.keypair_path, &state.program_id).await;
+            // 2. Parse the hex string (e.g., "691bd959") to a u64 timestamp (seconds)
+            let expires_at_timestamp_seconds =
+                u64::from_str_radix(expires_at_hex, 16).map_err(|e| {
+                    anyhow::anyhow!(
+                        "Escrow {}: Failed to parse hex timestamp '{}': {}",
+                        escrow_pubkey,
+                        expires_at_hex,
+                        e
+                    )
+                })?;
 
-//     // Step 3: Cancel each expired escrow
-//     for row in rows {
-//         let pubkey_str = row
-//             .escrow_pda
-//             .as_ref()
-//             .ok_or_else(|| anyhow!("Missing pubkey for expired escrow"))?;
+            // 3. Get current time in seconds since epoch
+            let now_seconds_u64 = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 
-//         let pubkey = Pubkey::from_str(pubkey_str)?;
-//         let escrow = EscrowAccount {
-//             pubkey: pubkey,
-//             expires_at: row.expires_at.unwrap_or(0),
-//         };
+            // 4. Compare the timestamps and determine if expired
+            if expires_at_timestamp_seconds < now_seconds_u64 {
+                // If the expiration time is less than the current time, it's expired.
+                tracing::info!(
+                    "🚨 Escrow {} EXPIRED! Expiration Time ({}s) vs Current Time ({}s).",
+                    escrow_pubkey,
+                    expires_at_timestamp_seconds,
+                    now_seconds_u64
+                );
 
-//         tracing::info!("⏳ Cancelling escrow {:?}", escrow.pubkey);
-//         if let Err(e) = solana.cancel_if_expired(&escrow).await {
-//             tracing::error!("❌ Failed to cancel escrow {:?}: {:?}", escrow.pubkey, e);
-//         } else {
-//             tracing::info!("✅ Escrow {:?} cancelled", escrow.pubkey);
-//         }
-//     }
-//     Ok(())
-// }
+                // --- ACTION: Execute the actual cancellation transaction here ---
+                tracing::info!(
+                    "--- ACTION: Cancel function would be called for Escrow: {} ---",
+                    escrow_pubkey
+                );
+
+                // IMPORTANT: You MUST update the database *after* successful cancellation
+                // to remove this escrow from the array, otherwise it will be picked up
+                // in the next cycle, creating a cancellation loop for a single escrow.
+                // update_escrow_status_in_db(escrow_pubkey).await?;
+            } else {
+                let difference = expires_at_timestamp_seconds - now_seconds_u64;
+                tracing::info!(
+                    "⏳ Escrow {} NOT EXPIRED yet. Expires in {} seconds. Worker waits for the next cycle.",
+                    escrow_pubkey,
+                    difference
+                );
+                // Since this is the soonest-to-expire escrow, if it's not expired,
+                // no other escrow can be, so we do nothing until the next tick.
+            }
+        }
+        None => {
+            tracing::info!("✅ No active escrows found to check.");
+        }
+    }
+
+    Ok(())
+}

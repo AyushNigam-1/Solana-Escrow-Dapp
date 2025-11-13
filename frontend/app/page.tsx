@@ -5,7 +5,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie"
 import { motion } from 'framer-motion';
-import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
 

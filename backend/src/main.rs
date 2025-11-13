@@ -30,7 +30,7 @@ async fn main() {
         .allow_origin(Any) // ✅ You can restrict later to your frontend’s origin
         .allow_methods(Any)
         .allow_headers(Any);
-    // tokio::spawn(run_keeper(Arc::new(app_state.clone())));
+    tokio::spawn(run_keeper(Arc::new(app_state.clone())));
 
     let app = Router::new()
         .nest("/api", routes::create_routes())

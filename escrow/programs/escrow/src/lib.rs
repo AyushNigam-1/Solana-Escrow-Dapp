@@ -72,14 +72,18 @@ pub mod escrow {
         ctx: Context<Initialize>,
         initializer_amount: u64,
         taker_expected_amount: u64,
+        duration_in_seconds: i64,
         unique_seed: [u8; 8], // ← FIX: Added missing argument
     ) -> Result<()> {
         check_token_program_id(&ctx.accounts.token_program.key)?;
         // 1. Set the Escrow State data
         let escrow_account = &mut ctx.accounts.escrow_state;
         escrow_account.initializer_key = *ctx.accounts.initializer.key;
-        let clock = Clock::get()?.unix_timestamp;
-        let expires_at = clock.checked_add(60_i64 * 60 * 24 * 7).ok_or(ErrorCode::Overflow)?;
+       let clock = Clock::get()?.unix_timestamp;
+
+        let expires_at = clock
+            .checked_add(duration_in_seconds) 
+            .ok_or(ErrorCode::Overflow)?;
         escrow_account.initializer_deposit_token_mint = ctx
             .accounts
             .initializer_deposit_token_mint
@@ -393,7 +397,8 @@ pub struct InitializeGlobalStats<'info> {
 #[derive(Accounts)]
 #[instruction(
     initializer_amount: u64, // ← FIXED: Corrected to match function args
-    taker_expected_amount: u64, 
+    taker_expected_amount: u64,
+     duration_in_seconds:i64,
     unique_seed: [u8; 8] // ← FIXED: Added unique seed arg
 )] 
 pub struct Initialize<'info> {

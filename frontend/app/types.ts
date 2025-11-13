@@ -88,3 +88,11 @@ export interface Escrow {
         metadata: TokenMetadata;
     };
 }
+export interface GlobalStats {
+    totalEscrowsCreated: bigint;
+    totalEscrowsCompleted: bigint;
+    totalEscrowsCanceled: bigint;
+    totalValueLocked: bigint;
+    totalValueReleased: bigint;
+    bump: number;
+}

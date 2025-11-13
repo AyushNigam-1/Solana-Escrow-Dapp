@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import idl from "../target/idl/escrow.json";
 import type { Escrow } from "../target/types/escrow";
 import { AnchorProvider, setProvider, Program } from "@coral-xyz/anchor";
+
 export const useProgram = () => {
     const { connection } = useConnection();
     const { wallet, publicKey, sendTransaction, disconnect } = useWallet(); // ✅ useWallet instead of useAnchorWallet()

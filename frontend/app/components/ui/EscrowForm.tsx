@@ -45,12 +45,14 @@ interface EscrowFormModalProps {
     // wallet: useWallet;
     // program: typeof MOCK_PROGRAM;
 }
-
+type FormElement = HTMLInputElement | HTMLSelectElement;
 interface FormState {
     initializerAmount: string;
     takerExpectedAmount: string;
     initializerDepositMint?: string;
     takerExpectedMint: string;
+    durationValue: string;
+    durationUnit: 'days' | 'hours' | 'mins' | 'sec';
 }
 
 const initialFormState: FormState = {
@@ -58,13 +60,16 @@ const initialFormState: FormState = {
     takerExpectedAmount: '',
     initializerDepositMint: '',
     takerExpectedMint: '',
+    durationValue: '7',
+    durationUnit: 'days'
 };
 
 export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpen, onClose, initializerDepositMint, toast }) => {
     const contractActions = useEscrowActions();
-    const [formData, setFormData] = useState<FormState>(initialFormState);
+    const [formData, setFormData] = useState<FormState>(initialFormState);;
     const [successPDA, setSuccessPDA] = useState<string | null>(null);
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+    const handleChange = (e: React.ChangeEvent<FormElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -90,7 +95,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
     const queryClient = useQueryClient();
     const { mutate: submit, isPending, isError, error, reset } = useMutation({
         mutationFn: async () => {
-            const requiredFields = ['initializerAmount', 'takerExpectedAmount', 'takerExpectedMint'];
+            const requiredFields = ['initializerAmount', 'takerExpectedAmount', 'takerExpectedMint', 'durationValue'];
 
             for (const field of requiredFields) {
                 if (!formData[field as keyof typeof formData]) {
@@ -104,6 +109,33 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
             if (isNaN(initAmount) || initAmount <= 0 || isNaN(takerAmount) || takerAmount <= 0) {
                 throw new Error("Amounts must be positive numbers.");
             }
+            let durationInSeconds = 0;
+            const value = parseInt(formData.durationValue, 10);
+            const unit = formData.durationUnit;
+
+            if (isNaN(value) || value <= 0) {
+                throw new Error("Duration value must be a positive number.");
+            }
+
+            switch (unit) {
+                case 'days':
+                    durationInSeconds = value * 24 * 60 * 60;
+                    break;
+                case 'hours':
+                    durationInSeconds = value * 60 * 60;
+                    break;
+                case 'mins':
+                    durationInSeconds = value * 60;
+                    break;
+                case 'sec':
+                    durationInSeconds = value;
+                    break;
+            }
+
+            // Optional: Sanity check for very long durations
+            if (durationInSeconds > 60 * 60 * 24 * 365 * 10) { // Limit to 10 years
+                throw new Error("Duration is too long. Maximum duration is 10 years.");
+            }
             // CRITICAL STEP: CONVERT STRING ADDRESSES TO PUBLIC KEYS
             const depositMintPK = new PublicKey(initializerDepositMint);
             const expectedMintPK = new PublicKey(formData.takerExpectedMint);
@@ -113,7 +145,8 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
                 initAmount,
                 takerAmount,
                 depositMintPK,
-                expectedMintPK
+                expectedMintPK,
+                durationInSeconds
             );
         },
         onSuccess: ({ account, publicKey }) => {
@@ -174,7 +207,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
                     <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={initializerDepositMint} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled />
                     <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isPending} />
 
-                    <div className='flex items-center gap-1 justify-center'>
+                    {/* <div className='flex items-center gap-1 justify-center'>
                         <hr className="border-t border-gray-600 w-full" />
                         <span className='p-2 rounded-full bg-gray-700'>
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-8">
@@ -182,11 +215,43 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ address, isOpe
                             </svg>
                         </span>
                         <hr className="border-t border-gray-600 w-full" />
-                    </div>
+                    </div> */}
 
                     <InputGroup label="Token B Mint Address" name="takerExpectedMint" value={formData.takerExpectedMint} onChange={handleChange} placeholder="Base58 Mint Address (Token B)" disabled={isPending} />
                     <InputGroup label="Expected Amount (Token B)" name="takerExpectedAmount" type="number" value={formData.takerExpectedAmount} onChange={handleChange} placeholder="e.g., 10" disabled={isPending} />
+                    <div className="space-y-2 flex gap-3">
 
+                        <InputGroup
+                            type="number"
+                            name="durationValue"
+                            value={formData.durationValue}
+                            onChange={handleChange}
+                            placeholder="e.g., 7"
+                            label=' Escrow Expiration Duration'
+                            disabled={isPending}
+                        />
+
+                        <div className="flex flex-col space-x-3">
+                            {/* Select for the unit (Duration Unit) */}
+                            <label htmlFor="durationUnit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Duration
+                            </label>
+                            <select
+                                name="durationUnit"
+                                value={formData.durationUnit}
+                                onChange={handleChange}
+                                // Styling to match InputGroup, using fixed width
+                                className="max-w-max px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition appearance-none"
+                                required
+                                disabled={isPending}
+                            >
+                                <option value="days">Days</option>
+                                <option value="hours">Hours</option>
+                                <option value="mins">Minutes</option>
+                                <option value="sec">Seconds</option>
+                            </select>
+                        </div>
+                    </div>
                     {isError && (
                         <div className="p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded-lg text-sm">
                             Error: {error.message}
@@ -245,7 +310,7 @@ const InputGroup: React.FC<{
     type?: string;
     disabled: boolean;
 }> = ({ label, name, value, onChange, placeholder, type = 'text', disabled }) => (
-    <div>
+    <div className='w-full '>
         <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {label}
         </label>
@@ -258,7 +323,7 @@ const InputGroup: React.FC<{
             onChange={onChange}
             placeholder={placeholder}
             disabled={disabled}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition"
         />
     </div>
 );

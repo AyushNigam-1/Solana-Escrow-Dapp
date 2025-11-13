@@ -7,10 +7,9 @@ import {
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { useProgram } from './useProgram';
 import { ensureATA, fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from '@/app/utils/token';
-import { Escrow } from '@/app/types';
+import { Escrow, GlobalStats } from '@/app/types';
 import axios from 'axios';
 const API_BASE = "http://localhost:3000"
-const GLOBAL_STATS_SEED = "global-stats"; // Must match the program's seed b"global-stats"
 
 const getGlobalStatsPDA = (programId: PublicKey) => {
     const [pda, _] = PublicKey.findProgramAddressSync(
@@ -94,7 +93,8 @@ export const useEscrowActions = () => {
         initializerAmount: number,
         takerExpectedAmount: number,
         initializerDepositMint: PublicKey,
-        takerExpectedMint: PublicKey
+        takerExpectedMint: PublicKey,
+        durationInSeconds: number
     ) => {
         if (!program || !publicKey) {
             throw new Error("Wallet not connected or program not loaded.");
@@ -111,9 +111,11 @@ export const useEscrowActions = () => {
         }
 
         const tokenProgramToUse = depositTokenProgramId;
+        const programId = program.programId; // Get the ID of your Anchor program
 
         const uniqueSeed = generateUniqueSeed();
         const escrowStatePDA = getEscrowStatePDA(initializerKey, uniqueSeed);
+        const globalStatsPDA = getGlobalStatsPDA(programId); // NEW: Global stats PDA
 
         // Ensure ATAs exist
         const initializerDepositTokenAccount = await ensureATA(initializerDepositMint, initializerKey, sendTransaction);
@@ -122,11 +124,7 @@ export const useEscrowActions = () => {
         // Convert amounts to Anchor's internal BN (BigNumber) format
         const initializerAmountBN = new anchor.BN(initializerAmount);
         const takerExpectedAmountBN = new anchor.BN(takerExpectedAmount);
-
-        const [globalStatsPDA] = PublicKey.findProgramAddressSync(
-            [Buffer.from(GLOBAL_STATS_SEED)],
-            PROGRAM_ID
-        );
+        const durationInSecondsBN = new anchor.BN(durationInSeconds)
 
         const [vaultAccountPDA] = PublicKey.findProgramAddressSync(
             [
@@ -140,7 +138,8 @@ export const useEscrowActions = () => {
                 .initialize(
                     initializerAmountBN,
                     takerExpectedAmountBN,
-                    uniqueSeed.toJSON().data
+                    durationInSecondsBN,
+                    uniqueSeed.toJSON().data,
                 )
                 .accounts({
                     initializer: initializerKey,
@@ -177,6 +176,26 @@ export const useEscrowActions = () => {
             throw new Error("Failed to initialize escrow. Check console for details.");
         }
     };
+    const fetchGlobalStats = async (): Promise<GlobalStats | null> => {
+        const globalStatsAddress = getGlobalStatsPDA(program!.programId);
+
+        try {
+            // Anchor automatically handles fetching and deserializing the account data
+            // into camelCase fields that match the GlobalStats interface.
+            const stats = await (program!.account as any).globalStats.fetch(globalStatsAddress);
+            return stats as GlobalStats;
+
+        } catch (error) {
+            // If the account is not found, fetch will typically throw an error.
+            // We catch it and return null for easier application logic.
+            if (error instanceof Error && error.message.includes("Account does not exist")) {
+                console.log("GlobalStats account not initialized yet.");
+                return null;
+            }
+            console.error("Error fetching GlobalStats:", error);
+            throw error;
+        }
+    }
     // async function fetchEscrowState(
     //     escrowPda: PublicKey
     // ): Promise<any> {
@@ -212,8 +231,10 @@ export const useEscrowActions = () => {
         escrowPDA: PublicKey
     ) {
         console.log("Cancel Escrow called with seed:", uniqueSeed.toString('hex'), initializerDepositTokenAccountKey, mintAddress);
+        const programId = program!.programId; // Get the ID of your Anchor program
 
         const vaultAccountPDA = getVaultPDA(escrowPDA);
+        const globalStatsPDA = getGlobalStatsPDA(programId); // NEW: Global stats PDA
 
         const initializerKey = anchorWallet?.publicKey!;
         const tokenProgramId = await getMintProgramId(mintAddress);
@@ -228,6 +249,7 @@ export const useEscrowActions = () => {
                     initializer: initializerKey,
                     initializerDepositTokenAccount: initializerDepositTokenAccountKey,
                     vaultAccount: vaultAccountPDA,
+                    globalStats: globalStatsPDA,
                     escrowState: escrowPDA,
                     initializerDepositMint: mintAddress,
                     tokenProgram: tokenProgramId, // Use the SPL Token Program ID
@@ -366,5 +388,5 @@ export const useEscrowActions = () => {
         console.log("escrows", escrows)
         return escrows
     }
-    return { initializeEscrow, fetchAllEscrows, cancelEscrow, exchangeEscrow, userEscrows };
+    return { initializeEscrow, fetchAllEscrows, cancelEscrow, exchangeEscrow, userEscrows, fetchGlobalStats };
 }

@@ -16,6 +16,23 @@ export const useMutations = ({ setPendingId }: MutationHookProps) => {
     const API_BASE = "http://127.0.0.1:3000"
     const queryClient = useQueryClient();
 
+    const saveEscrow = useMutation({
+        mutationFn: async ({ address, escrow }: { address: string; escrow: any }) => {
+            const response = await axios.post(`${API_BASE}/api/escrows/${address}`, escrow, {
+                headers: { "Content-Type": "application/json" },
+            });
+            return response.data;
+        },
+        onSuccess: (data) => {
+            console.log("✅ Escrow created successfully:", data);
+            // handleClose()
+            // toast()
+        },
+        onError: (error) => {
+            console.error("❌ Error creating escrow:", error);
+        },
+    });
+
     const updateEscrow = useMutation({
         mutationFn: async ({
             address,

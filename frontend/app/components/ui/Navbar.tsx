@@ -21,7 +21,7 @@ const Navbar = () => {
                         <img className="w-8 h-8 rounded-full" src="https://flowbite.com/docs/images/people/profile-picture-3.jpg" alt="user photo" />
                     </button>
                     <div
-                        className={`z-50 my-2 text-base list-none bg-gray-500/90 divide-y divide-gray-100 rounded-lg shadow-sm absolute right-4 top-16 
+                        className={`z-50 my-2 text-base list-none bg-white/10 backdrop-blur divide-y divide-gray-100 rounded-lg shadow-sm absolute right-4 top-16 
                                     ${isDropdownOpen ? 'block' : 'hidden'}`}
                         id="user-dropdown"
                     >
@@ -32,9 +32,9 @@ const Navbar = () => {
                                 </svg>
                                     {publicKey?.toString()?.slice(0, 15)}...</p>
                             </li>
-                            <div className='bg-gray-400 w-full h-0.5 ' />
+                            <div className='bg-gray-600 w-full h-0.5 ' />
                             <li>
-                                <button onClick={() => disconnect().then(() => router.push("/"))} className='p-2 bg-red-300/80 text-gray-900 rounded-lg mt-auto flex gap-2 items-center justify-center w-full'> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                <button onClick={() => disconnect().then(() => router.push("/"))} className='p-2 bg-red-300/80 text-white rounded-lg mt-auto flex gap-2 items-center justify-center w-full cursor-pointer hover:bg-red-300/90'> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                                 </svg>
                                     Logout</button>
