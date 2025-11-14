@@ -6,6 +6,4 @@ pub fn escrow_routes() -> Router {
         "/escrows/{address}",
         get(get_escrows).post(create_escrow).put(update_escrow),
     )
-    // .route("/escrows/expired", get(get_expired_escrows))
-    // .layer(Extension(state))
 }

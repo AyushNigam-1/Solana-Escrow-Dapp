@@ -6,7 +6,7 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct AppState {
     pub db: PgPool,
-    // pub solana: Arc<SolanaClient>,
+    pub solana: Arc<SolanaClient>,
 }
 
 impl AppState {
@@ -22,11 +22,11 @@ impl AppState {
             .connect(database_url)
             .await
             .expect("❌ Failed to connect to DB");
-        // let solana = SolanaClient::new(rpc_url, keypair_path, program_id).await;
+        let solana = SolanaClient::new(rpc_url, keypair_path, program_id).await;
 
         Self {
             db,
-            // solana: Arc::new(solana),
+            solana: Arc::new(solana),
         }
     }
 }
