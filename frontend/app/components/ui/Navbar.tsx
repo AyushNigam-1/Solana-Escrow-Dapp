@@ -4,11 +4,13 @@ import { useProgram } from '@/app/hooks/useProgram';
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation';
 const Navbar = () => {
+
     const router = useRouter()
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const toggleDropdown = () => {
         setIsDropdownOpen(prev => !prev);
     };
+
     const { disconnect, publicKey } = useProgram();
     return (
         <nav className="bg-white/5 w-full font-mono">

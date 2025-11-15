@@ -7,65 +7,11 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
     LabelList
 } from 'recharts';
-import { RefreshCw, BarChart3, TrendingUp, DollarSign, XCircle, CheckCircle2, LucideIcon } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, XCircle, CheckCircle2, LucideIcon } from 'lucide-react';
 import { useEscrowActions } from '@/app/hooks/useEscrowActions';
+import { GlobalStats, ParsedData } from '@/app/types/query';
+import Loader from '@/app/components/ui/Loader';
 
-interface GlobalStats {
-    totalEscrowsCreated: bigint;
-    totalEscrowsCompleted: bigint;
-    totalEscrowsCanceled: bigint;
-    totalValueLocked: bigint;
-    totalValueReleased: bigint;
-    bump: number;
-}
-
-/** Interface for the Escrow Status Pie Chart data */
-interface EscrowStatusItem {
-    name: string;
-    value: number;
-    color: string;
-    icon: LucideIcon;
-    [key: string]: any; // Allows additional properties, satisfying ChartDataInput[]
-}
-
-
-/** Interface for the Value Flow Bar Chart data */
-interface ValueFlowItem {
-    name: string;
-    value: number;
-    color: string;
-    [key: string]: any; // Allows additional properties, satisfying ChartDataInput[]
-}
-
-/** Structure for the fully parsed and cleaned data */
-interface ParsedData {
-    totalEscrows: number;
-    escrowStatusData: EscrowStatusItem[];
-    valueFlowData: ValueFlowItem[];
-    rawStats: {
-        created: number;
-        completed: number;
-        canceled: number;
-        lockedValue: number;
-        releasedValue: number;
-    };
-}
-
-const TOKEN_DECIMALS = BigInt(1000000); // Assuming 6 decimals (like USDC/SPL token)
-
-/**
- * Converts a BigInt token amount (with decimals) to a standard number for display.
- */
-const normalizeTokenAmount = (amount: bigint, decimals: bigint = TOKEN_DECIMALS): number => {
-    if (amount === BigInt(0)) return 0; // FIX: Use BigInt(0) for comparison
-    // We must convert the BigInts to Number for the division to work correctly 
-    // and for the result to be compatible with Recharts.
-    return Number(amount) / Number(decimals);
-};
-
-// =============================================================================
-// 4. CORE DASHBOARD COMPONENT
-// =============================================================================
 
 const page: React.FC = () => {
     const contractActions = useEscrowActions();
@@ -82,15 +28,10 @@ const page: React.FC = () => {
         console.log(data)
         if (!data) return null;
 
-        // 1. Convert BigInt counts to numbers
         const created = Number(data.totalEscrowsCreated);
         const completed = Number(data.totalEscrowsCompleted);
         const canceled = Number(data.totalEscrowsCanceled);
         const totalEscrows = created;
-
-        // 2. Normalize BigInt token values
-        // const lockedValue = normalizeTokenAmount(data.totalValueLocked);
-        // const releasedValue = normalizeTokenAmount(data.totalValueReleased);
         const lockedValue = Number(data.totalValueLocked);
         const releasedValue = Number(data.totalValueReleased);
 
@@ -111,16 +52,7 @@ const page: React.FC = () => {
     }, [data]);
 
     // UI States
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center h-[500px]  rounded-xl shadow-lg">
-                <div className="flex flex-col items-center space-y-3">
-                    <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
-                    <p className="text-gray-600 font-medium">Loading Global Escrow Stats...</p>
-                </div>
-            </div>
-        );
-    }
+    if (isLoading) <Loader />
 
     if (isError || !data || !parsedData) {
         return (

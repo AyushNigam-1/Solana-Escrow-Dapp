@@ -7,8 +7,9 @@ import {
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { useProgram } from './useProgram';
 import { ensureATA, fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from '@/app/utils/token';
-import { Escrow, GlobalStats } from '@/app/types';
+import { GlobalStats } from '@/app/types/query';
 import axios from 'axios';
+import { Escrow } from '../types/query';
 const API_BASE = "http://localhost:3000"
 
 const getGlobalStatsPDA = (programId: PublicKey) => {
@@ -351,7 +352,6 @@ export const useEscrowActions = () => {
         }
     }
     const userEscrows = async () => {
-        console.log(publicKey)
         const { data } = await axios.get(`${API_BASE}/api/escrows/${publicKey}`)
         const escrows: Escrow[] = []
         console.log("data", data, "data")

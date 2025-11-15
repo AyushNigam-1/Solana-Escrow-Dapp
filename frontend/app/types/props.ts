@@ -1,0 +1,34 @@
+import { UserTokenAccount } from "./query";
+import { Dispatch, SetStateAction } from "react";
+
+export interface UseUserTokenAccountsHook {
+    accounts: UserTokenAccount[];
+    loading: boolean;
+    error: string | null;
+    refresh: () => void;
+}
+
+export interface MutationHookProps {
+    setPendingId?: Dispatch<SetStateAction<string | null>>;
+}
+
+export interface EscrowFormModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    initializerDepositMint: string;
+}
+
+export interface HeaderProps {
+    title: string;
+    refetch: () => void;
+    setSearchQuery: (query: string) => void;
+    isFetching: boolean;
+}
+
+export interface NavItemProps {
+    icon: React.ReactNode;
+    text: string;
+    route: string;
+    onNavigate: (route: string) => void; // The callback function from the parent
+    isActive: boolean;
+}

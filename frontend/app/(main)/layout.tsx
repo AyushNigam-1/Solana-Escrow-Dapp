@@ -7,7 +7,6 @@ export default function AppLayout({ children }: Readonly<{
 }>) {
     return (
         <div className='relative w-full h-screen overflow-hidden'>
-            {/* 2. BLURRY BACKGROUND LAYER (Absolute, lowest Z-index) */}
             <div className="relative z-10 flex h-full">
                 <Sidebar />
                 <div className="w-full flex flex-col">
@@ -18,7 +17,6 @@ export default function AppLayout({ children }: Readonly<{
                 </div>
             </div>
             <ToastContainer position="top-center" transition={Slide} theme='dark' />
-
         </div>
     );
 }

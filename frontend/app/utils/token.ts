@@ -1,7 +1,7 @@
 import { Connection, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { getTokenMetadata, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, getAccount, getMint, createAssociatedTokenAccountInstruction } from "@solana/spl-token";
-import { FullTokenMetadata, OffChainMetadata, UserTokenAccount } from "../types";
-
+import { UserTokenAccount, FullTokenMetadata } from "../types/query"
+import axios from "axios";
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
 export async function fetchTokenMetadata(
@@ -19,27 +19,21 @@ export async function fetchTokenMetadata(
         throw new Error(`Metadata not found for mint: ${mintAddress.toBase58()}`);
     }
 
-    let offChainData: OffChainMetadata = { name: onChainMetadata.name, symbol: onChainMetadata.symbol, description: "", image: "" };
-
     try {
-        const response = await fetch(onChainMetadata.uri);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch metadata from URI: ${onChainMetadata.uri} (Status: ${response.status})`);
-        }
-        offChainData = await response.json();
+        const { data: offChainData } = await axios(onChainMetadata.uri);
+        return {
+            name: onChainMetadata.name,
+            symbol: onChainMetadata.symbol,
+            uri: onChainMetadata.uri,
+            description: offChainData.description || "",
+            image: offChainData.image || "", // Use a placeholder if image is missing
+            mintAddress: mintAddress.toBase58(),
+        };
     } catch (e) {
         console.warn(`Could not fetch or parse off-chain metadata from URI: ${onChainMetadata.uri}. Falling back to on-chain data. Error:`, e);
+        throw e;
     }
-
     // 3. Combine and return
-    return {
-        name: onChainMetadata.name,
-        symbol: onChainMetadata.symbol,
-        uri: onChainMetadata.uri,
-        description: offChainData.description || "",
-        image: offChainData.image || "", // Use a placeholder if image is missing
-        mintAddress: mintAddress.toBase58(),
-    };
 }
 
 export const ensureATA = async (mint: PublicKey, publicKey: PublicKey, sendTransaction: any): Promise<PublicKey> => {
@@ -184,21 +178,6 @@ export const generateUniqueSeed = (): Buffer => {
     return Buffer.from(buffer);
 };
 
-
-
-function getProgramIdFromIdentifier(programIdentifier: string): PublicKey | null {
-    switch (programIdentifier) {
-        case "spl-token-2022":
-            return TOKEN_2022_PROGRAM_ID;
-        case "spl-token":
-            return TOKEN_PROGRAM_ID;
-        default:
-            // Handle custom program ID case if necessary, or return null
-            console.warn(`Unknown token program identifier: ${programIdentifier}`);
-            return null;
-    }
-}
-
 export async function fetchUserTokenAccounts(
     owner: PublicKey,
 ): Promise<UserTokenAccount[]> {
@@ -212,29 +191,30 @@ export async function fetchUserTokenAccounts(
     const rawAccounts = [...token2022Accounts.value, ...legacyTokenAccounts.value];
     console.log("rawAccounts", rawAccounts)
     const userAccounts: UserTokenAccount[] = [];
-
     for (const { pubkey, account } of rawAccounts) {
-        // Data structure for parsed token accounts is: account.data.parsed.info
         const info = account.data.parsed.info;
-
-        const metadata = await fetchTokenMetadata(new PublicKey(info.mint))
-        const uiAmount = info.tokenAmount.uiAmount;
-        const amount = info.tokenAmount.amount;
-        const decimals = info.tokenAmount.decimals;
-        console.log("mint", info.mint, info.owner, uiAmount)
-        // Only include accounts with a positive balance and valid mint/owner
-        if (info.mint && info.owner) {
-            userAccounts.push({
-                tokenAddress: String(pubkey),
-                mint: info.mint,
-                amount: parseInt(amount, 10),
-                uiAmount,
-                decimals,
-                name: metadata.name,
-                symbol: metadata.symbol,
-                description: metadata.description || "",
-                image: metadata.image || "" // Use a placeholder if image is missing
-            });
+        try {
+            const metadata = await fetchTokenMetadata(new PublicKey(info.mint))
+            const uiAmount = info.tokenAmount.uiAmount;
+            const amount = info.tokenAmount.amount;
+            const decimals = info.tokenAmount.decimals;
+            console.log("mint", info.mint, info.owner, uiAmount)
+            if (info.mint && info.owner) {
+                userAccounts.push({
+                    tokenAddress: String(pubkey),
+                    mint: info.mint,
+                    amount: parseInt(amount, 10),
+                    uiAmount,
+                    decimals,
+                    name: metadata.name,
+                    symbol: metadata.symbol,
+                    description: metadata.description || "",
+                    image: metadata.image || "" // Use a placeholder if image is missing
+                });
+            }
+        }
+        catch (err) {
+            throw err
         }
     }
     console.log("inside fetch acc", userAccounts)
