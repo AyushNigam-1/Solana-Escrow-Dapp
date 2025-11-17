@@ -11,6 +11,7 @@ import { BarChart3, TrendingUp, DollarSign, XCircle, CheckCircle2, LucideIcon } 
 import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { GlobalStats, ParsedData } from '@/app/types/query';
 import Loader from '@/app/components/ui/Loader';
+import { StatCardProps } from '@/app/types/props';
 
 
 const page: React.FC = () => {
@@ -223,18 +224,7 @@ const page: React.FC = () => {
     );
 };
 
-// =============================================================================
-// 5. HELPER COMPONENTS (Typed)
-// =============================================================================
-
-interface StatCardProps {
-    title: string;
-    value: string;
-    icon: LucideIcon;
-    color: string;
-}
-
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color }) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon }) => (
     <div className={`bg-white/5 p-6 rounded-xl shadow-lg  flex items-center justify-between transition-shadow hover:shadow-xl`}>
         <div>
             <p className="text-sm font-medium text-gray-400 uppercase">{title}</p>

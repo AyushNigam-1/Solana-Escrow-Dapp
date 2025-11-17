@@ -3,7 +3,6 @@ import { EscrowFormModalProps } from '@/app/types/props';
 import { EscrowFormState } from '@/app/types/states';
 import { useMutations } from '@/app/hooks/useMutations';
 
-
 type FormElement = HTMLInputElement | HTMLSelectElement;
 
 const initialFormState: EscrowFormState = {
@@ -66,14 +65,13 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                 <form onSubmit={(e) => {
                     e.preventDefault();
                     setSuccessPDA(null);
-                    // reset();
-                    createEscrow.mutate({ formData, initializerDepositMint });
+                    createEscrow.mutateAsync({ formData, initializerDepositMint }).then(() => handleClose());
                 }} className=" space-y-6">
                     <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={initializerDepositMint} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled />
                     <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isMutating} />
                     <InputGroup label="Token B Mint Address" name="takerExpectedMint" value={formData.takerExpectedMint} onChange={handleChange} placeholder="Base58 Mint Address (Token B)" disabled={isMutating} />
                     <InputGroup label="Expected Amount (Token B)" name="takerExpectedAmount" type="number" value={formData.takerExpectedAmount} onChange={handleChange} placeholder="e.g., 10" disabled={isMutating} />
-                    <div className="space-y-2 flex gap-3">
+                    <div className="flex gap-3 items-end">
                         <InputGroup
                             type="number"
                             name="durationValue"
@@ -84,26 +82,21 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                             disabled={isMutating}
                         />
 
-                        <div className="flex flex-col space-x-3">
-                            {/* Select for the unit (Duration Unit) */}
-                            <label htmlFor="durationUnit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                Duration
-                            </label>
-                            <select
-                                name="durationUnit"
-                                value={formData.durationUnit}
-                                onChange={handleChange}
-                                // Styling to match InputGroup, using fixed width
-                                className="max-w-max px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition appearance-none"
-                                required
-                                disabled={isMutating}
-                            >
-                                <option value="days">Days</option>
-                                <option value="hours">Hours</option>
-                                <option value="mins">Minutes</option>
-                                <option value="sec">Seconds</option>
-                            </select>
-                        </div>
+
+                        <select
+                            name="durationUnit"
+                            value={formData.durationUnit}
+                            onChange={handleChange}
+                            // Styling to match InputGroup, using fixed width
+                            className="max-w-max px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition appearance-none"
+                            required
+                            disabled={isMutating}
+                        >
+                            <option value="days">Days</option>
+                            <option value="hours">Hours</option>
+                            <option value="mins">Minutes</option>
+                            <option value="sec">Seconds</option>
+                        </select>
                     </div>
                     {/* {isError && (
                         <div className="p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded-lg text-sm">

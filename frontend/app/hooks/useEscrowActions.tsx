@@ -19,6 +19,7 @@ const getGlobalStatsPDA = (programId: PublicKey) => {
     );
     return pda;
 };
+
 export const useEscrowActions = () => {
     const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA, connection } = useProgram()
 

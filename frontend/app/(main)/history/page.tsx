@@ -1,6 +1,7 @@
 "use client"
 import Header from '@/app/components/ui/Header';
 import Loader from '@/app/components/ui/Loader';
+import TableHeaders from '@/app/components/ui/TableHeaders';
 import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { useMutations } from '@/app/hooks/useMutations';
 import { useProgram } from '@/app/hooks/useProgram';
@@ -16,7 +17,7 @@ const page = () => {
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const contractActions = useEscrowActions();
     const [pendingId, setPendingId] = useState<string | null>(null);
-    const { cancelEscrow, isMutating } = useMutations({ setPendingId })
+    const { cancelEscrow, isMutating, createEscrow } = useMutations({ setPendingId })
 
     const {
         data: escrows,
@@ -27,7 +28,7 @@ const page = () => {
     } = useQuery({
         queryKey: ["escrows", publicKey],
         queryFn: () => contractActions.userEscrows(),
-        enabled: !!publicKey, // only run when publicKey exists
+        enabled: !!publicKey,
         retry: 1,
     });
 
@@ -88,6 +89,50 @@ const page = () => {
             return 'Invalid Date';
         }
     };
+    const headers = [
+        {
+            icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+            ),
+            title: "Token A"
+        },
+        {
+            icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+            ),
+            title: "Token B"
+        },
+        {
+            icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+            ),
+            title: " Expired By"
+        },
+        {
+            icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+
+            ),
+            title: "Status"
+        },
+
+        {
+            icon: (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" />
+                </svg>
+            ),
+            title: "Action"
+        }
+    ]
     return (
         <div className='flex flex-col gap-4 font-mono'>
             <Header title="History" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
@@ -154,34 +199,13 @@ const page = () => {
                         // </div>
                         //     :
                         //     !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl '>No active escrows found.</p>
-                        <div className="relative overflow-x-auto shadow-xs rounded-lg border border-white/5 ">
+                        <div className="relative overflow-x-auto shadow-xs rounded-lg ">
                             <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                <thead className="text-sm text-body bg-white/5  rounded-base ">
-                                    <tr>
-                                        <th scope="col" className="px-6 py-3 font-bold  text-lg w-1/5">
-                                            Token A
-                                        </th>
-                                        <th scope="col" className="px-6 py-3 font-bold text-lg w-1/5">
-                                            Token B
-                                        </th>
-                                        <th scope="col" className="px-6 py-3 font-bold text-lg w-1/5">
-                                            Expired By
-                                        </th>
-                                        <th scope="col" className="px-6 py-3 font-bold text-lg w-1/5">
-                                            Status
-                                        </th>
-                                        {/* <th scope="col" className="px-6 py-3 font-bold text-lg w-1/5">
-                                            Token Address
-                                        </th> */}
-                                        <th scope="col" className="px-6 py-3 font-bold text-lg w-1/5">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                </thead>
+                                <TableHeaders columns={headers} />
                                 <tbody>
                                     {filteredData?.map((escrow) => {
                                         return (
-                                            <tr className="border-b border-white/5">
+                                            <tr className="border-t-0 border-2  border-white/5">
                                                 <td className="px-6 py-4 ">
                                                     <div className="flex items-end gap-2">
                                                         <img
@@ -200,15 +224,15 @@ const page = () => {
                                                 <td className="px-6 py-4 ">
                                                     <div className="flex items-end gap-2 ">
                                                         <img
-                                                            src={escrow.tokenA.metadata.image}
+                                                            src={escrow.tokenB.metadata.image}
                                                             className='w-6 rounded-full object-cover'
-                                                            alt={`${escrow.tokenA.metadata.symbol} icon`}
+                                                            alt={`${escrow.tokenB.metadata.symbol} icon`}
                                                         />
                                                         <p className="text-xl font-semibold text-white ">
-                                                            {numeral(escrow.tokenA.amount).format('0a')}
+                                                            {numeral(escrow.tokenB.amount).format('0a')}
                                                         </p>
                                                         <p className="text-xl text-gray-400">
-                                                            {escrow.tokenA.metadata.symbol}
+                                                            {escrow.tokenB.metadata.symbol}
                                                         </p>
                                                     </div>
                                                 </td>
@@ -219,29 +243,38 @@ const page = () => {
                                                     {escrow.status}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {
-                                                        escrow.status == "Pending" ?
-                                                            <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancelEscrow.mutate({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                            </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                    <div className='flex gap-4 items-center' >
+                                                        <button className='text-lg text-violet-400 flex gap-2 items-center justify-center'>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
                                                             </svg>
-                                                                Cancel</>} </button>
-                                                            : <>
-                                                                <button className="p-2 bg-violet-900/70 rounded-lg mt-auto flex gap-2 items-center justify-center w-full" disabled
-                                                                >
-                                                                    {escrow.status == "Completed" ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                    </svg>
-                                                                        :
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`size-6 ${isFetching ? 'animate-spin' : ''}`}>
-                                                                            <path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0 1 12.548-3.364l1.903 1.903h-3.183a.75.75 0 1 0 0 1.5h4.992a.75.75 0 0 0 .75-.75V4.356a.75.75 0 0 0-1.5 0v3.18l-1.9-1.9A9 9 0 0 0 3.306 9.67a.75.75 0 1 0 1.45.388Zm15.408 3.352a.75.75 0 0 0-.919.53 7.5 7.5 0 0 1-12.548 3.364l-1.902-1.903h3.183a.75.75 0 0 0 0-1.5H2.984a.75.75 0 0 0-.75.75v4.992a.75.75 0 0 0 1.5 0v-3.18l1.9 1.9a9 9 0 0 0 15.059-4.035.75.75 0 0 0-.53-.918Z" clipRule="evenodd" />
+                                                            Hide
+                                                        </button>
+                                                        <span className='h-5 w-0.5 bg-white/20' ></span>
+                                                        {
+                                                            escrow.status == "Pending" ?
+                                                                <button className='text-red-400 items-center rounded-lg flex gap-2 text-lg w-full ' onClick={() => cancelEscrow.mutate({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                </svg>
+                                                                    Cancel</>} </button>
+                                                                : <>
+                                                                    <button className=" text-violet-400 rounded-lg  flex gap-2 items-center w-full text-lg" disabled
+                                                                    >
+                                                                        {escrow.status == "Completed" ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                                                         </svg>
-                                                                    } Re-Create
-                                                                </button>
-                                                            </>
-                                                    }
+                                                                            :
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`size-6 ${isFetching ? 'animate-spin' : ''}`}>
+                                                                                <path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0 1 12.548-3.364l1.903 1.903h-3.183a.75.75 0 1 0 0 1.5h4.992a.75.75 0 0 0 .75-.75V4.356a.75.75 0 0 0-1.5 0v3.18l-1.9-1.9A9 9 0 0 0 3.306 9.67a.75.75 0 1 0 1.45.388Zm15.408 3.352a.75.75 0 0 0-.919.53 7.5 7.5 0 0 1-12.548 3.364l-1.902-1.903h3.183a.75.75 0 0 0 0-1.5H2.984a.75.75 0 0 0-.75.75v4.992a.75.75 0 0 0 1.5 0v-3.18l1.9 1.9a9 9 0 0 0 15.059-4.035.75.75 0 0 0-.53-.918Z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                        } Re-Create
+                                                                    </button>
+                                                                </>
+                                                        }
+                                                    </div>
                                                 </td>
                                             </tr>
                                         )

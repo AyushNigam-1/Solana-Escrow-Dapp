@@ -1,8 +1,50 @@
-import { Connection, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
-import { getTokenMetadata, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, getAccount, getMint, createAssociatedTokenAccountInstruction } from "@solana/spl-token";
+import { Connection, PublicKey, TransactionMessage, TransactionSignature, VersionedTransaction } from "@solana/web3.js";
+import { getTokenMetadata, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, getAccount, getMint, createAssociatedTokenAccountInstruction, createCloseAccountInstruction } from "@solana/spl-token";
 import { UserTokenAccount, FullTokenMetadata } from "../types/query"
 import axios from "axios";
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+
+async function closeTokenAccount(
+    tokenAccountAddress: PublicKey,
+    recipientAddress: PublicKey,
+    ownerPublicKey: PublicKey,
+    sendTransaction: (transaction: VersionedTransaction) => Promise<TransactionSignature>,
+    connection: Connection,
+): Promise<string> {
+
+    // 1. Create the CloseAccount instruction
+    const closeInstruction = createCloseAccountInstruction(
+        tokenAccountAddress, // The Token Account to close
+        recipientAddress,    // The wallet that receives the SOL refund
+        ownerPublicKey,      // The current owner (wallet signs this)
+        [],                  // Optional multisig signers
+        TOKEN_PROGRAM_ID     // SPL Token Program ID
+    );
+
+    // 2. Fetch the required blockhash and last valid block height
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+
+    // 3. Create the Transaction Message (V0)
+    const messageV0 = new TransactionMessage({
+        payerKey: ownerPublicKey, // The fee payer and signer
+        recentBlockhash: blockhash,
+        instructions: [closeInstruction],
+    }).compileToV0Message();
+
+    // 4. Create the Versioned Transaction
+    const tx = new VersionedTransaction(messageV0);
+
+    // 5. Use the wallet adapter's method to sign and send the transaction
+    const signature = await sendTransaction(tx);
+
+    // 6. Confirm the transaction using the block details
+    await connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        "confirmed"
+    );
+
+    return signature;
+}
 
 export async function fetchTokenMetadata(
     mintAddress: PublicKey,

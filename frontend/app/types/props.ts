@@ -1,3 +1,4 @@
+import { LucideIcon } from "lucide-react";
 import { UserTokenAccount } from "./query";
 import { Dispatch, SetStateAction } from "react";
 
@@ -31,4 +32,16 @@ export interface NavItemProps {
     route: string;
     onNavigate: (route: string) => void; // The callback function from the parent
     isActive: boolean;
+}
+
+export interface TableHeaderProps {
+    icon: React.ReactNode
+    title: string
+}
+
+export interface StatCardProps {
+    title: string;
+    value: string;
+    icon: LucideIcon;
+    color: string;
 }
