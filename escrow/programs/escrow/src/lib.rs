@@ -84,6 +84,7 @@ pub mod escrow {
         let expires_at = clock
             .checked_add(duration_in_seconds) 
             .ok_or(ErrorCode::Overflow)?;
+        escrow_account.expires_at = expires_at; 
         escrow_account.initializer_deposit_token_mint = ctx
             .accounts
             .initializer_deposit_token_mint

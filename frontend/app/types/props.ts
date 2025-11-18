@@ -1,6 +1,7 @@
 import { LucideIcon } from "lucide-react";
 import { UserTokenAccount } from "./query";
 import { Dispatch, SetStateAction } from "react";
+import { EscrowFormState } from "./states";
 
 export interface UseUserTokenAccountsHook {
     accounts: UserTokenAccount[];
@@ -16,7 +17,8 @@ export interface MutationHookProps {
 export interface EscrowFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    initializerDepositMint: string;
+    initializerDepositMint?: string;
+    data?: EscrowFormState
 }
 
 export interface HeaderProps {

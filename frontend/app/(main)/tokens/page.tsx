@@ -5,6 +5,10 @@ import { EscrowFormModal } from '../../components/ui/EscrowForm';
 import Header from '@/app/components/ui/Header';
 import Loader from '@/app/components/ui/Loader';
 import TableHeaders from '@/app/components/ui/TableHeaders';
+import { useQuery } from '@tanstack/react-query';
+import { fetchUserTokenAccounts } from '@/app/utils/token';
+import { PublicKey } from '@solana/web3.js';
+import { Slide, ToastContainer } from 'react-toastify';
 
 const page = () => {
   const [mintAddress, setMintAddress] = useState<string>("")
@@ -12,58 +16,35 @@ const page = () => {
   const [searchQuery, setSearchQuery] = useState("") // New state for search query
 
   const publicKey = Cookies.get("user")!
-  // const {
-  // data,
-  // isLoading,
-  // isFetching,
-  // isError,
-  // error,
-  // refetch,
-  // } = useQuery({
-  //   queryKey: ['userTokens', publicKey.toString()],
-  //   queryFn: () => fetchUserTokenAccounts(new PublicKey(publicKey)),
-  //   enabled: !!publicKey.toString(),
-  //   staleTime: 1000 * 3000,
-  // });
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['userTokens', publicKey.toString()],
+    queryFn: () => fetchUserTokenAccounts(new PublicKey(publicKey)),
+    enabled: !!publicKey.toString(),
+    staleTime: 1000 * 3000,
+  });
 
-  const mockData = [
-    {
-      "tokenAddress": "CVAVeiQfiiuwfTZqcsRbggsf7kYk3hnvK7GsC8ckibpC",
-      "mint": "8XNvy2TzMvLH3iAvkUc4HByJ1PmR4fSPopVRm6fgGNtp",
-      "amount": 999999999999999700,
-      "uiAmount": 999999999.9999998,
-      "decimals": 9,
-      "name": "Metaplex",
-      "symbol": "MTT",
-      "description": "A sample token for demonstration purposes.",
-      "image": "https://static.vecteezy.com/system/resources/previews/024/092/856/original/ftx-token-ftt-glass-crypto-coin-3d-illustration-free-png.png"
-    },
-    {
-      "tokenAddress": "EkgWNo6PSAURUyweSshWxarX78hTRe7Ru8RKGNAkwgnU",
-      "mint": "qsKv7R4yhPanCgBcgLmH9gBcnWTbw2ANLoMvTZD3JTi",
-      "amount": 0,
-      "uiAmount": 0,
-      "decimals": 9,
-      "name": "Only Possible On Solana",
-      "symbol": "OPOS",
-      "description": "Only Possible On Solana",
-      "image": "https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/DeveloperPortal/image.png"
-    }
-  ]
   const filteredData = useMemo(() => {
     if (!searchQuery) {
-      return mockData;
+      return data;
     }
 
     const lowerCaseQuery = searchQuery.toLowerCase();
-    return mockData.filter(token => {
+    return data!.filter(token => {
       return (
         token.name.toLowerCase().includes(lowerCaseQuery) ||
         token.symbol.toLowerCase().includes(lowerCaseQuery) ||
         token.mint.toLowerCase().includes(lowerCaseQuery)
       );
     });
-  }, [mockData, searchQuery]);
+  }, [data, searchQuery]);
+
   const headers = [
     {
       icon: (
@@ -110,10 +91,6 @@ const page = () => {
     }
   ]
 
-
-  const isFetching = false;
-  const isError = false;
-  const refetch = () => ""
   return (
     <div className="font-mono flex flex-col gap-4">
       <Header title="Tokens" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
@@ -123,14 +100,13 @@ const page = () => {
         ) :
           isError ? (
             <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching tokens. Please check your connection.</p>
-          ) : <div className="relative overflow-x-auto shadow-xs rounded-lg border border-white/5 ">
+          ) : filteredData?.length != 0 ? <div className="relative overflow-x-auto shadow-xs rounded-lg">
             <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
               <TableHeaders columns={headers} />
-
               <tbody>
                 {filteredData?.map((token) => {
                   return (
-                    <tr className="border-t-0 border-2  border-white/5">
+                    <tr key={token.mint} className="border-t-0 border-2  border-white/5">
                       <td className="px-6 py-4 ">
                         <div className="flex items-end gap-2">
                           <img
@@ -153,29 +129,27 @@ const page = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-6 items-center">
-                          <button className='text-lg text-violet-400 flex gap-2 items-center justify-center' onClick={() => { setOpen(true); setMintAddress(token.mint) }} >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                              <path fillRule="evenodd" d="M15.97 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H7.5a.75.75 0 0 1 0-1.5h11.69l-3.22-3.22a.75.75 0 0 1 0-1.06Zm-7.94 9a.75.75 0 0 1 0 1.06l-3.22 3.22H16.5a.75.75 0 0 1 0 1.5H4.81l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
-                            </svg>
-                            Swap
-                          </button>
-                          <span className='h-5 w-0.5 bg-white/20' ></span>
-                          <button className='text-lg text-red-400 flex gap-1 items-center justify-center' onClick={() => { setOpen(true); setMintAddress(token.mint) }} >
+                          <button className='text-lg text-violet-400 hover:text-violet-500 flex gap-2 cursor-pointer items-center justify-center' onClick={() => { setOpen(true); setMintAddress(token.mint) }} >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                             </svg>
-                            Delete
+
+                            Create Deal
                           </button>
+                          {/* <span className='h-5 w-0.5 bg-white/20' ></span> */}
+
                         </div>
                       </td>
                     </tr>
                   )
-                })}
+                })
+
+                }
               </tbody>
             </table>
-          </div>
+          </div> : !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl'>No tokens available.</p>
         }
-        {filteredData.length === 0 && searchQuery && (
+        {filteredData?.length === 0 && searchQuery && (
           <div className="lg:col-span-4 p-8 rounded-xl text-center text-gray-400">
             <p className="text-xl font-medium">No tokens found matching "{searchQuery}"</p>
           </div>
@@ -183,6 +157,7 @@ const page = () => {
       </div>
 
       <EscrowFormModal isOpen={isOpen} onClose={() => setOpen(false)} initializerDepositMint={mintAddress} />
+      <ToastContainer position="top-center" transition={Slide} theme='dark' />
     </div>
   )
 }

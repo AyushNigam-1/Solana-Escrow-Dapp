@@ -5,7 +5,6 @@ import { useEscrowActions } from "./useEscrowActions";
 import axios from "axios";
 import { MutationHookProps } from "../types/props";
 import { CancelParams, ExchangeParams, UpdateParams } from "../types/params"
-import { toast } from "react-toastify"
 import { Escrow, ExchangeQuery } from "../types/query";
 import { EscrowFormState } from "../types/states";
 
@@ -23,6 +22,7 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
             escrow,
             action
         }: UpdateParams) => {
+            console.log(action)
             const response = action == "update" ? await axios.put(
                 `${API_BASE}/api/escrows/${address}`,
                 escrow,
@@ -32,7 +32,13 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
             ) : await axios.post(`${API_BASE}/api/escrows/${address}`, escrow, {
                 headers: { "Content-Type": "application/json" },
             });
-
+            // const response = await axios.put(
+            //     `${API_BASE}/api/escrows/${address}`,
+            //     escrow,
+            //     {
+            //         headers: { "Content-Type": "application/json" },
+            //     }
+            // )
             return response.data;
         },
         onSuccess: (data) => {
@@ -44,25 +50,18 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
     });
 
     const createEscrow = useMutation({
-        mutationFn: async ({ formData, initializerDepositMint }: { formData: EscrowFormState, initializerDepositMint: string }) => {
-            const requiredFields = ['initializerAmount', 'takerExpectedAmount', 'takerExpectedMint', 'durationValue'];
+        mutationFn: async (params: EscrowFormState) => {
 
-            for (const field of requiredFields) {
-                if (!formData[field as keyof typeof formData]) {
-                    throw new Error(`${field} is required.`);
-                }
-            }
-
-            const initAmount = parseFloat(formData.initializerAmount);
-            const takerAmount = parseFloat(formData.takerExpectedAmount);
+            const initAmount = parseFloat(params.initializerAmount);
+            const takerAmount = parseFloat(params.takerExpectedAmount);
 
             if (isNaN(initAmount) || initAmount <= 0 || isNaN(takerAmount) || takerAmount <= 0) {
                 throw new Error("Amounts must be positive numbers.");
             }
 
             let durationInSeconds = 0;
-            const value = parseInt(formData.durationValue, 10);
-            const unit = formData.durationUnit;
+            const value = parseInt(params.durationValue, 10);
+            const unit = params.durationUnit;
 
             if (isNaN(value) || value <= 0) {
                 throw new Error("Duration value must be a positive number.");
@@ -88,8 +87,8 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
                 throw new Error("Duration is too long. Maximum duration is 10 years.");
             }
             // CRITICAL STEP: CONVERT STRING ADDRESSES TO PUBLIC KEYS
-            const depositMintPK = new PublicKey(initializerDepositMint);
-            const expectedMintPK = new PublicKey(formData.takerExpectedMint);
+            const depositMintPK = new PublicKey(params.initializerDepositMint!);
+            const expectedMintPK = new PublicKey(params.takerExpectedMint);
 
             // --- 2. Call the Escrow function ---
             return await contractActions.initializeEscrow(
@@ -102,7 +101,7 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
         },
         onSuccess: ({ account, publicKey }) => {
             console.log("✅ Escrow Initialized Successfully! PDA:", account);
-            updateEscrow.mutate({ address: userAddress, escrow: { account, status: "Pending", publicKey }, action: 'Create' })
+            updateEscrow.mutate({ address: userAddress, escrow: { account: { ...account, expiresAt: account.expiresAt.toString(10) }, status: "Pending", publicKey }, action: 'create' })
             queryClient.invalidateQueries({ queryKey: ['AllEscrows'] });
         },
 
@@ -123,12 +122,10 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
         },
         onSuccess: (data: ExchangeQuery) => {
             setPendingId!(null);
-            updateEscrow.mutate({ address: data.initializerKey, escrow: { escrow_pda: data.escrow_pda, status: "Completed" }, action: "Update" })
+            updateEscrow.mutate({ address: data.initializerKey, escrow: { escrow_pda: data.escrow_pda, status: "Completed" }, action: "update" })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
                 return escrows ? escrows.filter(escrow => escrow.publicKey.toBase58() !== data.escrow_pda) : [];
             });
-            toast.success("Successfully Exchanged Deal")
-
         },
         onError: (error) => {
             setPendingId!(null);
@@ -151,11 +148,10 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
         onSuccess: (data) => {
             setPendingId!(null);
             console.log(data)
-            updateEscrow.mutate({ address: userAddress?.toString()!, escrow: { escrow_pda: data, status: "Cancelled" }, action: "Update" })
+            updateEscrow.mutate({ address: userAddress?.toString()!, escrow: { escrow_pda: data, status: "Cancelled" }, action: "update" })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
                 return escrows ? escrows.filter(escrow => escrow.publicKey.toBase58() !== data) : [];
             });
-            toast.success("Successfully Cancelled Deal")
         },
         onError: (error) => {
             setPendingId!(null);

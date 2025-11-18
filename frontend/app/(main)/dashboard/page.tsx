@@ -84,7 +84,7 @@ const page: React.FC = () => {
                     disabled={isFetching}
                     className={` py-2 px-4 flex items-center gap-2 rounded-lg text-white transition-all transform hover:scale-[1.01] ${isFetching
                         ? 'bg-white/5  cursor-not-allowed'
-                        : 'bg-violet-900/70'
+                        : 'bg-violet-400/75'
                         }`}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`size-6 ${isFetching ? 'animate-spin' : ''}`}>

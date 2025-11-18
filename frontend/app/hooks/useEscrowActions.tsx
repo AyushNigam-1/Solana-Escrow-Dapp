@@ -178,18 +178,13 @@ export const useEscrowActions = () => {
             throw new Error("Failed to initialize escrow. Check console for details.");
         }
     };
+
     const fetchGlobalStats = async (): Promise<GlobalStats | null> => {
         const globalStatsAddress = getGlobalStatsPDA(program!.programId);
-
         try {
-            // Anchor automatically handles fetching and deserializing the account data
-            // into camelCase fields that match the GlobalStats interface.
             const stats = await (program!.account as any).globalStats.fetch(globalStatsAddress);
             return stats as GlobalStats;
-
         } catch (error) {
-            // If the account is not found, fetch will typically throw an error.
-            // We catch it and return null for easier application logic.
             if (error instanceof Error && error.message.includes("Account does not exist")) {
                 console.log("GlobalStats account not initialized yet.");
                 return null;
@@ -198,34 +193,7 @@ export const useEscrowActions = () => {
             throw error;
         }
     }
-    // async function fetchEscrowState(
-    //     escrowPda: PublicKey
-    // ): Promise<any> {
-    //     try {
-    //         // Step 1: Derive the PDA address
-    //         // const escrowStatePDA = getEscrowStatePDA(anchorWallet?.publicKey!, uniqueSeed);
-    //         // console.log(`Attempting to fetch data for PDA: ${escrowStatePDA.toBase58()}`);
 
-    //         // Step 2: Fetch the account data using the PDA address
-    //         // The first argument to fetch is the PDA address.
-    //         const escrowData = await program!.account.escrowState.fetch(escrowPda);
-
-    //         console.log("Successfully fetched escrow data:", escrowData);
-    //         // Add the PDA and bump to the retrieved object for convenience
-    //         return {
-    //             ...escrowData,
-    //             // pda: escrowStatePDA,
-    //             // bump: bump
-    //         };
-
-    //     } catch (error) {
-    //         // This is where you catch errors like:
-    //         // - Account does not exist (Error: Account <ADDRESS> does not exist)
-    //         // - Could not decode account data (if the IDL is wrong)
-    //         console.error("Failed to fetch escrow state:", error);
-    //         throw new Error(`Could not retrieve Escrow state. Check the initializer key, unique seed, and if the account exists.`);
-    //     }
-    // }
     async function cancelEscrow(
         uniqueSeed: Buffer,
         initializerDepositTokenAccountKey: PublicKey,
@@ -325,20 +293,12 @@ export const useEscrowActions = () => {
                     initializerReceiveTokenAccount,
                     escrowState: escrowPDA,
                     vaultAccount: vaultAccountPDA,
-
-                    // NEW: Required by the Anchor context
                     globalStats: globalStatsPDA,
-
-                    // NEW: Mints required for CPI TransferChecked validation/decimals
                     initializerDepositMint: depositTokenMint,
                     takerExpectedMint: receiveTokenMint,
-
                     initializerKey: initializerKey, // The original seller's key for constraint check
                     tokenProgram: TOKEN_2022_PROGRAM_ID,
-
-                    // NEW: Required system accounts
                     systemProgram: SystemProgram.programId,
-                    // Rent is necessary for closing accounts
                     rent: SYSVAR_RENT_PUBKEY,
                 })
                 // 3. Send the transaction
@@ -352,6 +312,7 @@ export const useEscrowActions = () => {
             throw new Error(`Exchange failed. Ensure all token accounts are correctly initialized and the constraints are met.`);
         }
     }
+
     const userEscrows = async () => {
         const { data } = await axios.get(`${API_BASE}/api/escrows/${publicKey}`)
         const escrows: Escrow[] = []

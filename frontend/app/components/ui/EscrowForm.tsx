@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { EscrowFormModalProps } from '@/app/types/props';
 import { EscrowFormState } from '@/app/types/states';
 import { useMutations } from '@/app/hooks/useMutations';
+import { toast } from 'react-toastify';
 
 type FormElement = HTMLInputElement | HTMLSelectElement;
 
@@ -14,11 +15,16 @@ const initialFormState: EscrowFormState = {
     durationUnit: 'days'
 };
 
-export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClose, initializerDepositMint }) => {
+export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClose, initializerDepositMint, data }) => {
 
     const { createEscrow, isMutating } = useMutations()
-    const [formData, setFormData] = useState<EscrowFormState>(initialFormState);;
+    const [formData, setFormData] = useState<EscrowFormState>(initialFormState);
     const [successPDA, setSuccessPDA] = useState<string | null>(null);
+    console.log(formData)
+
+    useEffect(() => {
+        if (data) setFormData(data)
+    }, [data])
 
     const handleChange = (e: React.ChangeEvent<FormElement>) => {
         const { name, value } = e.target;
@@ -52,7 +58,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                 onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
             >
                 <div className=" dark:border-gray-700 flex justify-between items-center ">
-                    <h2 className="text-2xl font-bold text-white ">Create Deal</h2>
+                    <h2 className="text-2xl font-bold text-white ">{data && "Re-"}Create Deal</h2>
                     <button
                         onClick={handleClose}
                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
@@ -65,11 +71,11 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                 <form onSubmit={(e) => {
                     e.preventDefault();
                     setSuccessPDA(null);
-                    createEscrow.mutateAsync({ formData, initializerDepositMint }).then(() => handleClose());
+                    createEscrow.mutateAsync({ ...formData, initializerDepositMint: initializerDepositMint || formData.initializerDepositMint }).then(() => { handleClose(); toast.success("Successfully Created Deal") });
                 }} className=" space-y-6">
-                    <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={initializerDepositMint} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled />
+                    <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={(initializerDepositMint || formData.initializerDepositMint)!} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled />
                     <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isMutating} />
-                    <InputGroup label="Token B Mint Address" name="takerExpectedMint" value={formData.takerExpectedMint} onChange={handleChange} placeholder="Base58 Mint Address (Token B)" disabled={isMutating} />
+                    <InputGroup label="Token B Mint Address" name="takerExpectedMint" value={formData.takerExpectedMint} onChange={handleChange} placeholder="Base58 Mint Address (Token B)" disabled={isMutating || !!data} />
                     <InputGroup label="Expected Amount (Token B)" name="takerExpectedAmount" type="number" value={formData.takerExpectedAmount} onChange={handleChange} placeholder="e.g., 10" disabled={isMutating} />
                     <div className="flex gap-3 items-end">
                         <InputGroup
@@ -81,13 +87,10 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                             label=' Escrow Expiration Duration'
                             disabled={isMutating}
                         />
-
-
                         <select
                             name="durationUnit"
                             value={formData.durationUnit}
                             onChange={handleChange}
-                            // Styling to match InputGroup, using fixed width
                             className="max-w-max px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition appearance-none"
                             required
                             disabled={isMutating}
@@ -137,7 +140,9 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                                 Creating...
                             </div>
                         ) : (
-                            'Create'
+                            <>
+                                {data && "Re-"}Create
+                            </>
                         )}
                     </button>
                 </form>
@@ -146,7 +151,6 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
     );
 };
 
-// Helper component for structured input fields
 const InputGroup: React.FC<{
     label: string;
     name: keyof EscrowFormState;

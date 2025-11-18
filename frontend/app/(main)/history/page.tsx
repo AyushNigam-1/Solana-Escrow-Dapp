@@ -1,4 +1,5 @@
 "use client"
+import { EscrowFormModal } from '@/app/components/ui/EscrowForm';
 import Header from '@/app/components/ui/Header';
 import Loader from '@/app/components/ui/Loader';
 import TableHeaders from '@/app/components/ui/TableHeaders';
@@ -6,17 +7,19 @@ import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { useMutations } from '@/app/hooks/useMutations';
 import { useProgram } from '@/app/hooks/useProgram';
 import { Escrow } from '@/app/types/query';
+import { formatExpiry } from '@/app/utils/token';
 import { useQuery } from '@tanstack/react-query';
 import numeral from 'numeral';
 import React, { useMemo, useState } from 'react'
-import { Slide, ToastContainer } from 'react-toastify';
+import { Slide, toast, ToastContainer } from 'react-toastify';
 
 const page = () => {
-
+    const [isOpen, setOpen] = useState(false)
     const { publicKey } = useProgram()
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const contractActions = useEscrowActions();
     const [pendingId, setPendingId] = useState<string | null>(null);
+    const [selectedEscrow, setEscrow] = useState<Escrow | undefined>()
     const { cancelEscrow, isMutating, createEscrow } = useMutations({ setPendingId })
 
     const {
@@ -53,42 +56,7 @@ const page = () => {
             );
         });
     }, [escrows, searchQuery]);
-    const formatExpiry = (bnObject: any): string => {
-        if (!bnObject || !bnObject.toString) {
-            return 'N/A';
-        }
 
-        try {
-            // 1. Convert BN object to string
-            const timestampString = bnObject.toString();
-            if (timestampString === '0') {
-                return 'Never'; // Handle zero or no expiry
-            }
-
-            // 2. Convert seconds (standard Solana) to milliseconds
-            const seconds = BigInt(timestampString);
-            const milliseconds = Number(seconds * BigInt(1000));
-
-            // 3. Create Date object and format
-            const date = new Date(milliseconds);
-
-            // Use standard date formatting for readability
-            const options: Intl.DateTimeFormatOptions = {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            };
-
-            return date.toLocaleString(undefined, options);
-
-        } catch (e) {
-            console.error("Error formatting expiry date:", e);
-            return 'Invalid Date';
-        }
-    };
     const headers = [
         {
             icon: (
@@ -139,155 +107,101 @@ const page = () => {
             <div className='gap-4'>
                 {isLoading || isFetching ? (
                     <Loader />
-                ) : // 2. Handle Error state if fetching failed
+                ) :
                     isError ? (
                         <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
                     ) :
-                        // filteredData?.length != 0 ? <div className="grid grid-cols-12 gap-4"> {filteredData?.map((escrow: Escrow) => (
-                        //     <div className='flex gap-5 flex-col col-span-3 bg-white/5 p-3 rounded-xl' >
-                        //         <div className='space-y-2 text-center'>
-                        //             <p className='text-lg font-semibold'>{escrow.tokenA.metadata.name}</p>
-                        //             <div className='flex gap-2 items-end bg-gray-50/5 p-2 rounded-xl justify-center' >
-                        //                 <img src={escrow.tokenA.metadata.image} className='w-10' alt="" />
-                        //                 <p className="text-4xl font-semibold text-white leading-none ">{numeral(escrow.tokenA.amount).format('0a')}  </p>
-                        //                 <p className="text-gray-300">{escrow.tokenA.metadata.symbol}</p>
-                        //             </div>
-                        //         </div>
-                        //         <div className='flex items-center gap-1 justify-center'>
-                        //             <hr className="border-t border-gray-600 w-full" />
-                        //             <span className='p-2 rounded-full bg-white/5'>
-                        //                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-8">
-                        //                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
-                        //                 </svg>
-                        //             </span>
-                        //             <hr className="border-t border-gray-600 w-full" />
-                        //         </div>
-                        //         <div className='space-y-2 text-center'>
-                        //             <p className='font-semibold'>{escrow.tokenB.metadata.name}</p>
-                        //             <div className='flex gap-2 items-end bg-gray-50/5 p-2 rounded-xl justify-center' >
-                        //                 <img src={escrow.tokenB.metadata.image} className='w-10' alt="" />
-                        //                 <p className="text-4xl font-semibold text-white leading-none ">{numeral(escrow.tokenB.amount).format('0a')}  </p>
-                        //                 <p className="text-gray-300">{escrow.tokenB.metadata.symbol}</p>
-                        //             </div>
-                        //         </div>
-                        //         {
-                        //             escrow.status == "Pending" ?
-                        //                 <button className='bg-red-300/80 p-2 rounded-lg mt-auto flex gap-2 items-center justify-center w-full text-gray-900' onClick={() => cancelEscrow.mutate({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        //                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        //                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        //                 </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                        //                     <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        //                 </svg>
-                        //                     Cancel</>} </button>
-                        //                 : <>
-                        //                     <button className={`p-2 ${escrow.status == "Completed" ? 'bg-violet-900/70 ' : 'bg-red-300/80'} rounded-lg mt-auto flex gap-2 items-center justify-center w-full`} disabled
-                        //                     >
-                        //                         {escrow.status == "Completed" ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                        //                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        //                         </svg>
-                        //                             :
-                        //                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                        //                                 <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        //                             </svg>
-                        //                         } {escrow.status}
-                        //                     </button>
-                        //                 </>
-                        //         }
-                        //     </div>
-                        // )
-                        // )}
-                        // </div>
-                        //     :
-                        //     !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl '>No active escrows found.</p>
-                        <div className="relative overflow-x-auto shadow-xs rounded-lg ">
-                            <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                <TableHeaders columns={headers} />
-                                <tbody>
-                                    {filteredData?.map((escrow) => {
-                                        return (
-                                            <tr className="border-t-0 border-2  border-white/5">
-                                                <td className="px-6 py-4 ">
-                                                    <div className="flex items-end gap-2">
-                                                        <img
-                                                            src={escrow.tokenA.metadata.image}
-                                                            className='w-6 rounded-full object-cover'
-                                                            alt={`${escrow.tokenA.metadata.symbol} icon`}
-                                                        />
-                                                        <p className="text-xl font-semibold text-white">
-                                                            {numeral(escrow.tokenA.amount).format('0a')}
-                                                        </p>
-                                                        <p className="text-xl text-gray-400">
-                                                            {escrow.tokenA.metadata.symbol}
-                                                        </p>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 ">
-                                                    <div className="flex items-end gap-2 ">
-                                                        <img
-                                                            src={escrow.tokenB.metadata.image}
-                                                            className='w-6 rounded-full object-cover'
-                                                            alt={`${escrow.tokenB.metadata.symbol} icon`}
-                                                        />
-                                                        <p className="text-xl font-semibold text-white ">
-                                                            {numeral(escrow.tokenB.amount).format('0a')}
-                                                        </p>
-                                                        <p className="text-xl text-gray-400">
-                                                            {escrow.tokenB.metadata.symbol}
-                                                        </p>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-xl text-gray-400">
-                                                    {formatExpiry(escrow.account.expiresAt)}
-                                                </td>
-                                                <td className="px-6 py-4 text-xl text-gray-400 leading-none">
-                                                    {escrow.status}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className='flex gap-4 items-center' >
-                                                        <button className='text-lg text-violet-400 flex gap-2 items-center justify-center'>
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                                                            </svg>
-                                                            Hide
-                                                        </button>
-                                                        <span className='h-5 w-0.5 bg-white/20' ></span>
-                                                        {
-                                                            escrow.status == "Pending" ?
-                                                                <button className='text-red-400 items-center rounded-lg flex gap-2 text-lg w-full ' onClick={() => cancelEscrow.mutate({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey })}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                </svg>
-                                                                    Cancel</>} </button>
-                                                                : <>
-                                                                    <button className=" text-violet-400 rounded-lg  flex gap-2 items-center w-full text-lg" disabled
-                                                                    >
-                                                                        {escrow.status == "Completed" ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                        </svg>
-                                                                            :
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`size-6 ${isFetching ? 'animate-spin' : ''}`}>
-                                                                                <path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0 1 12.548-3.364l1.903 1.903h-3.183a.75.75 0 1 0 0 1.5h4.992a.75.75 0 0 0 .75-.75V4.356a.75.75 0 0 0-1.5 0v3.18l-1.9-1.9A9 9 0 0 0 3.306 9.67a.75.75 0 1 0 1.45.388Zm15.408 3.352a.75.75 0 0 0-.919.53 7.5 7.5 0 0 1-12.548 3.364l-1.902-1.903h3.183a.75.75 0 0 0 0-1.5H2.984a.75.75 0 0 0-.75.75v4.992a.75.75 0 0 0 1.5 0v-3.18l1.9 1.9a9 9 0 0 0 15.059-4.035.75.75 0 0 0-.53-.918Z" clipRule="evenodd" />
-                                                                            </svg>
-                                                                        } Re-Create
-                                                                    </button>
-                                                                </>
-                                                        }
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                }
-            </div>
-            <ToastContainer position="top-center" transition={Slide} theme='dark' />
+                        filteredData?.length != 0 ?
+                            <div className="relative overflow-x-auto shadow-xs rounded-lg ">
+                                <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
+                                    <TableHeaders columns={headers} />
+                                    <tbody>
+                                        {filteredData?.map((escrow) => {
+                                            return (
+                                                <tr key={String(escrow.publicKey)} className="border-t-0 border-2  border-white/5">
+                                                    <td className="px-6 py-4 ">
+                                                        <div className="flex items-end gap-2">
+                                                            <img
+                                                                src={escrow.tokenA.metadata.image}
+                                                                className='w-6 rounded-full object-cover'
+                                                                alt={`${escrow.tokenA.metadata.symbol} icon`}
+                                                            />
+                                                            <p className="text-xl font-semibold text-white">
+                                                                {numeral(escrow.tokenA.amount).format('0a')}
+                                                            </p>
+                                                            <p className="text-xl text-gray-400">
+                                                                {escrow.tokenA.metadata.symbol}
+                                                            </p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 ">
+                                                        <div className="flex items-end gap-2 ">
+                                                            <img
+                                                                src={escrow.tokenB.metadata.image}
+                                                                className='w-6 rounded-full object-cover'
+                                                                alt={`${escrow.tokenB.metadata.symbol} icon`}
+                                                            />
+                                                            <p className="text-xl font-semibold text-white ">
+                                                                {numeral(escrow.tokenB.amount).format('0a')}
+                                                            </p>
+                                                            <p className="text-xl text-gray-400">
+                                                                {escrow.tokenB.metadata.symbol}
+                                                            </p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-xl text-gray-400">
+                                                        {formatExpiry(escrow.account.expiresAt)}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-xl text-gray-400 leading-none">
+                                                        {escrow.status}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className='flex gap-4 items-center' >
 
+                                                            {
+                                                                escrow.status == "Pending" ?
+                                                                    <button className='hover:text-red-500 text-red-400 items-center rounded-lg flex gap-2 text-lg w-full ' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                    </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                    </svg>
+                                                                        Cancel</>} </button>
+                                                                    : <>
+                                                                        <button className="hover:text-violet-500 text-violet-400 rounded-lg cursor-pointer flex gap-2 items-center w-full text-lg" onClick={() => { setEscrow(escrow); setOpen(true) }}
+                                                                        >
+                                                                            {escrow.status == "Completed" ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                            </svg>
+                                                                                :
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`size-6 ${isFetching ? 'animate-spin' : ''}`}>
+                                                                                    <path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0 1 12.548-3.364l1.903 1.903h-3.183a.75.75 0 1 0 0 1.5h4.992a.75.75 0 0 0 .75-.75V4.356a.75.75 0 0 0-1.5 0v3.18l-1.9-1.9A9 9 0 0 0 3.306 9.67a.75.75 0 1 0 1.45.388Zm15.408 3.352a.75.75 0 0 0-.919.53 7.5 7.5 0 0 1-12.548 3.364l-1.902-1.903h3.183a.75.75 0 0 0 0-1.5H2.984a.75.75 0 0 0-.75.75v4.992a.75.75 0 0 0 1.5 0v-3.18l1.9 1.9a9 9 0 0 0 15.059-4.035.75.75 0 0 0-.53-.918Z" clipRule="evenodd" />
+                                                                                </svg>
+                                                                            } Re-Create
+                                                                        </button>
+                                                                    </>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div> : !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl'>No history available.</p>
+                }
+                {filteredData?.length === 0 && searchQuery && (
+                    <div className="lg:col-span-4 p-8 rounded-xl text-center text-gray-400">
+                        <p className="text-xl font-medium">No deals found matching "{searchQuery}"</p>
+                    </div>
+                )}
+            </div>
+
+            <EscrowFormModal isOpen={isOpen} onClose={() => { setOpen(false); refetch() }} data={{ initializerAmount: selectedEscrow?.account.initializerAmount!, takerExpectedAmount: selectedEscrow?.account.takerExpectedAmount!, takerExpectedMint: selectedEscrow?.account.takerExpectedTokenMint!, initializerDepositMint: selectedEscrow?.account.initializerDepositTokenMint!, durationUnit: "days", durationValue: "3" }} />
+            <ToastContainer position="top-center" transition={Slide} theme='dark' />
         </div >
     )
 }
 
 export default page
+
