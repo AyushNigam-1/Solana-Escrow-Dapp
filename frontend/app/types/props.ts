@@ -21,6 +21,11 @@ export interface EscrowFormModalProps {
     data?: EscrowFormState
 }
 
+export interface ChartContainerProps {
+    title: string;
+    children: React.ReactNode;
+}
+
 export interface HeaderProps {
     title: string;
     refetch: () => void;

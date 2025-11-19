@@ -54,9 +54,17 @@ export const useProgram = () => {
         return vaultAccountPDA;
     }
 
+    const getGlobalStatsPDA = (programId: PublicKey) => {
+        const [pda, _] = PublicKey.findProgramAddressSync(
+            [Buffer.from("global-stats")],
+            programId
+        );
+        return pda;
+    };
     return {
         getVaultPDA,
         getEscrowStatePDA,
+        getGlobalStatsPDA,
         sendTransaction,
         disconnect,
         program,

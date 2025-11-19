@@ -12,16 +12,8 @@ import axios from 'axios';
 import { Escrow } from '../types/query';
 const API_BASE = "http://localhost:3000"
 
-const getGlobalStatsPDA = (programId: PublicKey) => {
-    const [pda, _] = PublicKey.findProgramAddressSync(
-        [Buffer.from("global-stats")],
-        programId
-    );
-    return pda;
-};
-
 export const useEscrowActions = () => {
-    const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA, connection } = useProgram()
+    const { program, PROGRAM_ID, sendTransaction, publicKey, anchorWallet, getEscrowStatePDA, getVaultPDA, getGlobalStatsPDA, connection } = useProgram()
 
     async function fetchAllEscrows(
     ): Promise<Escrow[]> {
@@ -66,6 +58,7 @@ export const useEscrowActions = () => {
             return [];
         }
     }
+
     async function getEventsFromSignature(
         txSignature: string,
         eventName: string
@@ -118,6 +111,7 @@ export const useEscrowActions = () => {
         const uniqueSeed = generateUniqueSeed();
         const escrowStatePDA = getEscrowStatePDA(initializerKey, uniqueSeed);
         const globalStatsPDA = getGlobalStatsPDA(programId); // NEW: Global stats PDA
+        const vaultAccountPDA = getVaultPDA(escrowStatePDA);
 
         // Ensure ATAs exist
         const initializerDepositTokenAccount = await ensureATA(initializerDepositMint, initializerKey, sendTransaction);
@@ -128,13 +122,6 @@ export const useEscrowActions = () => {
         const takerExpectedAmountBN = new anchor.BN(takerExpectedAmount);
         const durationInSecondsBN = new anchor.BN(durationInSeconds)
 
-        const [vaultAccountPDA] = PublicKey.findProgramAddressSync(
-            [
-                Buffer.from("vault"),                      // Static seed
-                escrowStatePDA.toBuffer(),                 // Key of the Escrow State Account
-            ],
-            PROGRAM_ID
-        );
         try {
             const txSignature = await program.methods
                 .initialize(
@@ -162,9 +149,7 @@ export const useEscrowActions = () => {
                     maxRetries: 3,
                 });
 
-            console.log("✅ Escrow Initialized! Sig:", txSignature);
             const account = await getEventsFromSignature(txSignature, "initializeEvent");
-            console.log(account)
             if (!account) {
                 console.warn("Event data not found in confirmed transaction. Check program logs.");
             }
@@ -183,7 +168,8 @@ export const useEscrowActions = () => {
         const globalStatsAddress = getGlobalStatsPDA(program!.programId);
         try {
             const stats = await (program!.account as any).globalStats.fetch(globalStatsAddress);
-            return stats as GlobalStats;
+            const { data } = await axios(`${API_BASE}/api/stats`)
+            return { ...stats, daily_creations: data.daily_creations } as GlobalStats;
         } catch (error) {
             if (error instanceof Error && error.message.includes("Account does not exist")) {
                 console.log("GlobalStats account not initialized yet.");
@@ -239,51 +225,33 @@ export const useEscrowActions = () => {
     async function exchangeEscrow(
         escrowPDA: PublicKey,
         initializerKey: PublicKey,
-        depositTokenMint: PublicKey, // Mint A (initializer_deposit_mint)
-        receiveTokenMint: PublicKey, // Mint B (taker_expected_mint)
+        depositTokenMint: PublicKey,
+        receiveTokenMint: PublicKey,
     ): Promise<{ escrow_pda: string; initializerKey: string; }> {
-        const takerKey = anchorWallet?.publicKey;
 
-        if (!takerKey) {
-            throw new Error("Wallet not connected. Taker must be a signer.");
-        }
-        if (!program) {
-            throw new Error("Anchor program not initialized.");
-        }
-
-        const programId = program.programId; // Get the ID of your Anchor program
-        console.log("recieve token mint", receiveTokenMint)
-        // --- 1. Derive all necessary accounts ---
+        const takerKey = anchorWallet?.publicKey!;
         const vaultAccountPDA = getVaultPDA(escrowPDA);
-        const globalStatsPDA = getGlobalStatsPDA(programId); // NEW: Global stats PDA
+        const globalStatsPDA = getGlobalStatsPDA(PROGRAM_ID);
 
         const takerDepositTokenAccount = await ensureATA(
-            receiveTokenMint, // Taker deposits Token B (receiveTokenMint)
+            receiveTokenMint,
             takerKey,
             sendTransaction,
         );
 
         const takerReceiveTokenAccount = await ensureATA(
-            depositTokenMint, // Taker receives Token A (depositTokenMint)
+            depositTokenMint,
             takerKey,
             sendTransaction,
         );
 
-        // NOTE: This ATA must be the exact one stored in the EscrowState account
-        // It's safer to read the EscrowState account to get the exact key
-        // For now, we rely on the function logic matching the creation logic
         const initializerReceiveTokenAccount = await ensureATA(
-            receiveTokenMint, // Initializer receives Token B (receiveTokenMint)
+            receiveTokenMint,
             initializerKey,
             sendTransaction,
-            // TOKEN_2022_PROGRAM_ID // Ensure this is passed to ATA creation
         );
 
-        console.log(`[Exchange] Taker (Signer): ${takerKey.toBase58()}`);
-        // ... console logs ...
-
         try {
-            // --- 2. Build the transaction instruction (FIXED ACCOUNTS) ---
             const tx = await program!.methods
                 .exchange()
                 .accounts({
@@ -296,12 +264,11 @@ export const useEscrowActions = () => {
                     globalStats: globalStatsPDA,
                     initializerDepositMint: depositTokenMint,
                     takerExpectedMint: receiveTokenMint,
-                    initializerKey: initializerKey, // The original seller's key for constraint check
+                    initializerKey: initializerKey,
                     tokenProgram: TOKEN_2022_PROGRAM_ID,
                     systemProgram: SystemProgram.programId,
                     rent: SYSVAR_RENT_PUBKEY,
                 })
-                // 3. Send the transaction
                 .rpc();
 
             console.log("Escrow exchange successful! Transaction:", tx);

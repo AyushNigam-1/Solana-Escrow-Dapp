@@ -10,8 +10,9 @@ import { useMutations } from '@/app/hooks/useMutations';
 import Header from '@/app/components/ui/Header';
 import Loader from '@/app/components/ui/Loader';
 import TableHeaders from '@/app/components/ui/TableHeaders';
-import { formatExpiry } from '@/app/utils/token';
+import { formatExpiry } from '@/app/utils/duration';
 import { Slide, toast, ToastContainer } from 'react-toastify';
+import Error from '@/app/components/ui/Error';
 
 const page = () => {
 
@@ -50,9 +51,6 @@ const page = () => {
             );
         });
     }, [data, searchQuery]);
-
-
-
 
     const headers = [
         {
@@ -105,9 +103,7 @@ const page = () => {
                 {isLoading || isFetching ? (
                     <Loader />
                 ) :
-                    isQueryError ? (
-                        <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
-                    ) :
+                    isQueryError ? <Error refetch={refetch} /> :
                         (filteredData?.length != 0) ?
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
@@ -162,21 +158,17 @@ const page = () => {
 
                                                                 {
                                                                     publicKey?.toString() == escrow.account.initializerKey.toString() ?
-                                                                        <button className='text-red-400 hover:text-red-500 text-lg flex gap-2 p-2 items-center w-full cursor-pointer' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: escrow.account.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                        </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                        </svg>
-                                                                            Cancel</>} </button>
+                                                                        <button className='text-red-400 hover:text-red-500 text-lg flex gap-2 p-2 items-center w-full cursor-pointer' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: escrow.account.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <Loader /> :
+                                                                            <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                            </svg>
+                                                                                Cancel</>}
+                                                                        </button>
                                                                         : <>
                                                                             <button className='text-violet-400 text-lg hover:text-violet-500 flex gap-2 p-2 items-center w-full cursor-pointer'
                                                                                 onClick={() => exchangeEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerKey: escrow.account.initializerKey, escrowPDA: escrow.publicKey.toString(), depositTokenMint: escrow.tokenA.metadata.mintAddress, receiveTokenMint: escrow.tokenB.metadata.mintAddress }).then(() => toast.success("Successfully Exchanged Tokens"))}
                                                                             >
-                                                                                {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                                </svg> :
+                                                                                {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <Loader /> :
                                                                                     <>
                                                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
                                                                                             <path fillRule="evenodd" d="M15.97 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H7.5a.75.75 0 0 1 0-1.5h11.69l-3.22-3.22a.75.75 0 0 1 0-1.06Zm-7.94 9a.75.75 0 0 1 0 1.06l-3.22 3.22H16.5a.75.75 0 0 1 0 1.5H4.81l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />

@@ -9,10 +9,6 @@ const Sidebar = () => {
   const router = useRouter();
   const currentPage = usePathname();
 
-  const handleToggle = useCallback(() => {
-    setIsSidebarOpen(prev => !prev);
-  }, []);
-
   const handleNavigate = useCallback((route: string) => {
     router.push(route);
     console.log("Navigating to:", route);
@@ -20,7 +16,7 @@ const Sidebar = () => {
       setIsSidebarOpen(false);
     }
   }, [isSidebarOpen]);
-  // Navigation items array, explicitly typed with NavItemProps[]
+
   const navOptions: Omit<NavItemProps, 'onNavigate' | 'isActive'>[] = [
     {
       icon: (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
@@ -51,7 +47,7 @@ const Sidebar = () => {
       aria-label="Sidebar"
     >
       <div className="h-full  overflow-y-auto bg-white/5">
-        <div className="text-3xl font-extrabold text-gray-900 dark:text-white p-3.5 ">
+        <div className="text-3xl font-extrabold text-gray-900 dark:text-white p-3.5 border-b-2 border-b-white/5">
           Escrow
         </div>
         <ul className="space-y-2 font-medium p-3">

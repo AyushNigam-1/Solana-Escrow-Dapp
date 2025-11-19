@@ -10,7 +10,7 @@ export interface ExchangeParams {
 
 export interface UpdateParams {
     address: string;
-    escrow: { escrow_pda?: string; status: string, account?: any, publicKey?: string };
+    escrow: { escrow_pda?: string; status: string, account?: any, publicKey?: string, createdAt?: string };
     action: string
 }
 

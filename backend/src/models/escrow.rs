@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -46,4 +47,5 @@ pub struct EscrowState {
     pub public_key: String,
     pub account: Account,
     pub status: Status,
+    pub created_at: DateTime<Utc>,
 }

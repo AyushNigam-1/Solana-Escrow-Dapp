@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchUserTokenAccounts } from '@/app/utils/token';
 import { PublicKey } from '@solana/web3.js';
 import { Slide, ToastContainer } from 'react-toastify';
+import Error from '@/app/components/ui/Error';
 
 const page = () => {
   const [mintAddress, setMintAddress] = useState<string>("")
@@ -98,9 +99,7 @@ const page = () => {
         {isFetching ? (
           <Loader />
         ) :
-          isError ? (
-            <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching tokens. Please check your connection.</p>
-          ) : filteredData?.length != 0 ? <div className="relative overflow-x-auto shadow-xs rounded-lg">
+          isError ? <Error refetch={refetch} /> : filteredData?.length != 0 ? <div className="relative overflow-x-auto shadow-xs rounded-lg">
             <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
               <TableHeaders columns={headers} />
               <tbody>
@@ -133,11 +132,8 @@ const page = () => {
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                             </svg>
-
                             Create Deal
                           </button>
-                          {/* <span className='h-5 w-0.5 bg-white/20' ></span> */}
-
                         </div>
                       </td>
                     </tr>

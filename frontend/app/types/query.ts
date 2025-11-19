@@ -8,6 +8,7 @@ export interface GlobalStats {
     totalEscrowsCanceled: bigint;
     totalValueLocked: bigint;
     totalValueReleased: bigint;
+    daily_creations: { date: string; count: number }[];
     bump: number;
 }
 interface EscrowStatusItem {

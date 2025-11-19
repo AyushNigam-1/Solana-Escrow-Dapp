@@ -1,4 +1,5 @@
 "use client"
+import Error from '@/app/components/ui/Error';
 import { EscrowFormModal } from '@/app/components/ui/EscrowForm';
 import Header from '@/app/components/ui/Header';
 import Loader from '@/app/components/ui/Loader';
@@ -7,7 +8,7 @@ import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { useMutations } from '@/app/hooks/useMutations';
 import { useProgram } from '@/app/hooks/useProgram';
 import { Escrow } from '@/app/types/query';
-import { formatExpiry } from '@/app/utils/token';
+import { formatExpiry } from '@/app/utils/duration';
 import { useQuery } from '@tanstack/react-query';
 import numeral from 'numeral';
 import React, { useMemo, useState } from 'react'
@@ -20,7 +21,7 @@ const page = () => {
     const contractActions = useEscrowActions();
     const [pendingId, setPendingId] = useState<string | null>(null);
     const [selectedEscrow, setEscrow] = useState<Escrow | undefined>()
-    const { cancelEscrow, isMutating, createEscrow } = useMutations({ setPendingId })
+    const { cancelEscrow, isMutating } = useMutations({ setPendingId })
 
     const {
         data: escrows,
@@ -29,7 +30,7 @@ const page = () => {
         isError,
         refetch,
     } = useQuery({
-        queryKey: ["escrows", publicKey],
+        queryKey: ["history", publicKey],
         queryFn: () => contractActions.userEscrows(),
         enabled: !!publicKey,
         retry: 1,
@@ -108,9 +109,7 @@ const page = () => {
                 {isLoading || isFetching ? (
                     <Loader />
                 ) :
-                    isError ? (
-                        <p className='text-center col-span-4 text-red-400 text-2xl '>Error fetching escrows. Please check your connection.</p>
-                    ) :
+                    isError ? <Error refetch={refetch} /> :
                         filteredData?.length != 0 ?
                             <div className="relative overflow-x-auto shadow-xs rounded-lg ">
                                 <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
@@ -160,10 +159,7 @@ const page = () => {
 
                                                             {
                                                                 escrow.status == "Pending" ?
-                                                                    <button className='hover:text-red-500 text-red-400 items-center rounded-lg flex gap-2 text-lg w-full ' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <svg className="animate-spin -ml-1 mr-3 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                    </svg> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                    <button className='hover:text-red-500 text-red-400 items-center rounded-lg flex gap-2 text-lg w-full cursor-pointer' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <Loader /> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                                                     </svg>
                                                                         Cancel</>} </button>

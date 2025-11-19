@@ -7,7 +7,7 @@ import { MutationHookProps } from "../types/props";
 import { CancelParams, ExchangeParams, UpdateParams } from "../types/params"
 import { Escrow, ExchangeQuery } from "../types/query";
 import { EscrowFormState } from "../types/states";
-
+import { convertTimeToSeconds } from "../utils/duration";
 
 export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
 
@@ -16,7 +16,7 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
     const API_BASE = "http://127.0.0.1:3000"
     const queryClient = useQueryClient();
 
-    const updateEscrow = useMutation({
+    const updateEscrowDb = useMutation({
         mutationFn: async ({
             address,
             escrow,
@@ -32,17 +32,12 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
             ) : await axios.post(`${API_BASE}/api/escrows/${address}`, escrow, {
                 headers: { "Content-Type": "application/json" },
             });
-            // const response = await axios.put(
-            //     `${API_BASE}/api/escrows/${address}`,
-            //     escrow,
-            //     {
-            //         headers: { "Content-Type": "application/json" },
-            //     }
-            // )
+
             return response.data;
         },
         onSuccess: (data) => {
             console.log("✅ Escrow updated successfully:", data);
+
         },
         onError: (error) => {
             console.error("❌ Failed to update escrow:", error);
@@ -51,58 +46,19 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
 
     const createEscrow = useMutation({
         mutationFn: async (params: EscrowFormState) => {
-
-            const initAmount = parseFloat(params.initializerAmount);
-            const takerAmount = parseFloat(params.takerExpectedAmount);
-
-            if (isNaN(initAmount) || initAmount <= 0 || isNaN(takerAmount) || takerAmount <= 0) {
-                throw new Error("Amounts must be positive numbers.");
-            }
-
-            let durationInSeconds = 0;
-            const value = parseInt(params.durationValue, 10);
-            const unit = params.durationUnit;
-
-            if (isNaN(value) || value <= 0) {
-                throw new Error("Duration value must be a positive number.");
-            }
-
-            switch (unit) {
-                case 'days':
-                    durationInSeconds = value * 24 * 60 * 60;
-                    break;
-                case 'hours':
-                    durationInSeconds = value * 60 * 60;
-                    break;
-                case 'mins':
-                    durationInSeconds = value * 60;
-                    break;
-                case 'sec':
-                    durationInSeconds = value;
-                    break;
-            }
-
-            // Optional: Sanity check for very long durations
-            if (durationInSeconds > 60 * 60 * 24 * 365 * 10) { // Limit to 10 years
-                throw new Error("Duration is too long. Maximum duration is 10 years.");
-            }
-            // CRITICAL STEP: CONVERT STRING ADDRESSES TO PUBLIC KEYS
-            const depositMintPK = new PublicKey(params.initializerDepositMint!);
-            const expectedMintPK = new PublicKey(params.takerExpectedMint);
-
-            // --- 2. Call the Escrow function ---
             return await contractActions.initializeEscrow(
-                initAmount,
-                takerAmount,
-                depositMintPK,
-                expectedMintPK,
-                durationInSeconds
+                parseFloat(params.initializerAmount),
+                parseFloat(params.takerExpectedAmount),
+                new PublicKey(params.initializerDepositMint),
+                new PublicKey(params.takerExpectedMint),
+                convertTimeToSeconds(Number(params.durationValue), params.durationUnit)!
             );
         },
         onSuccess: ({ account, publicKey }) => {
             console.log("✅ Escrow Initialized Successfully! PDA:", account);
-            updateEscrow.mutate({ address: userAddress, escrow: { account: { ...account, expiresAt: account.expiresAt.toString(10) }, status: "Pending", publicKey }, action: 'create' })
+            updateEscrowDb.mutate({ address: userAddress, escrow: { account: { ...account, expiresAt: account.expiresAt.toString(10) }, createdAt: new Date().toISOString(), status: "Pending", publicKey }, action: 'create' })
             queryClient.invalidateQueries({ queryKey: ['AllEscrows'] });
+            queryClient.invalidateQueries({ queryKey: ['history', userAddress] })
         },
 
         onError: (error) => {
@@ -122,7 +78,7 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
         },
         onSuccess: (data: ExchangeQuery) => {
             setPendingId!(null);
-            updateEscrow.mutate({ address: data.initializerKey, escrow: { escrow_pda: data.escrow_pda, status: "Completed" }, action: "update" })
+            updateEscrowDb.mutate({ address: data.initializerKey, escrow: { escrow_pda: data.escrow_pda, status: "Completed" }, action: "update" })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
                 return escrows ? escrows.filter(escrow => escrow.publicKey.toBase58() !== data.escrow_pda) : [];
             });
@@ -148,7 +104,7 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
         onSuccess: (data) => {
             setPendingId!(null);
             console.log(data)
-            updateEscrow.mutate({ address: userAddress?.toString()!, escrow: { escrow_pda: data, status: "Cancelled" }, action: "update" })
+            updateEscrowDb.mutate({ address: userAddress?.toString()!, escrow: { escrow_pda: data, status: "Cancelled" }, action: "update" })
             queryClient.setQueryData<Escrow[]>(['AllEscrows'], (escrows) => {
                 return escrows ? escrows.filter(escrow => escrow.publicKey.toBase58() !== data) : [];
             });
@@ -163,6 +119,8 @@ export const useMutations = ({ setPendingId }: MutationHookProps = {}) => {
         createEscrow,
         exchangeEscrow,
         cancelEscrow,
-        isMutating: updateEscrow.isPending || cancelEscrow.isPending || exchangeEscrow.isPending || createEscrow.isPending
+        isMutating: updateEscrowDb.isPending || cancelEscrow.isPending || exchangeEscrow.isPending || createEscrow.isPending
     }
 }
+
+// https://youtu.be/fMpbS0NbdQo?si=msFlOHd_yuhdtL2G

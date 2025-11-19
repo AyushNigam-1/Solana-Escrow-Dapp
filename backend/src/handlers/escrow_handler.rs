@@ -151,3 +151,84 @@ pub async fn get_escrows(
         }
     }
 }
+
+pub async fn delete_escrow(
+    Extension(state): Extension<AppState>,
+    Path((address, escrow_pda)): Path<(String, String)>,
+) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    println!(
+        "🗑️ Incoming request to delete escrow for address: {}",
+        address
+    );
+    println!("🗝️ Deleting escrow with unique_seed: {}", escrow_pda);
+
+    // Step 1: Fetch existing escrows
+    let existing: Result<(sqlx::types::Json<Vec<EscrowState>>,), sqlx::Error> =
+        sqlx::query_as(r#"SELECT escrows FROM users WHERE address = $1"#)
+            .bind(&address)
+            .fetch_one(&state.db)
+            .await;
+
+    let mut escrows = match existing {
+        Ok((sqlx::types::Json(current),)) => {
+            println!("✅ Found {} existing escrows.", current.len());
+            current
+        }
+        Err(sqlx::Error::RowNotFound) => {
+            eprintln!("⚠️ User not found for address: {}", address);
+            return Err(StatusCode::NOT_FOUND);
+        }
+        Err(e) => {
+            eprintln!(
+                "❌ Failed to fetch existing escrows for {}: {:?}",
+                address, e
+            );
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    // Step 2: Find and filter out the escrow to delete
+    let initial_count = escrows.len();
+
+    // We filter the list, keeping only the escrows whose unique_seed DOES NOT match
+    // the one sent in the request.
+    escrows.retain(|e| e.public_key != escrow_pda);
+
+    if escrows.len() == initial_count {
+        // If the length didn't change, the escrow wasn't found.
+        println!(
+            "⚠️ Escrow with unique_seed {} not found in list.",
+            escrow_pda
+        );
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    println!("➖ Removed 1 escrow. New count: {}", escrows.len());
+
+    // Step 3: Update the record with the filtered array
+    println!("💾 Updating user {}’s escrows in the database…", address);
+    let res = sqlx::query!(
+        r#"UPDATE users SET escrows = $1 WHERE address = $2"#,
+        sqlx::types::Json(&escrows) as _,
+        address
+    )
+    .execute(&state.db)
+    .await;
+
+    match res {
+        Ok(_) => {
+            println!("✅ Escrow successfully deleted for user {}", address);
+            Ok((
+                StatusCode::OK,
+                Json(json!({"message": "Escrow deleted successfully"})),
+            ))
+        }
+        Err(e) => {
+            eprintln!(
+                "❌ Failed to update escrows after deletion for {}: {:?}",
+                address, e
+            );
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
