@@ -4,14 +4,6 @@ import { UserTokenAccount, FullTokenMetadata } from "../types/query"
 import axios from "axios";
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
-export const formatExpiry = (timestamp: any): string => {
-    const date = new Date(timestamp * 1000);  // Convert seconds → milliseconds
-    const day = String(date.getDate()).padStart(2, '0');     // 18
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // +1 because months are 0-indexed
-    const hours = String(date.getHours()).padStart(2, '0');     // 24-hour format
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}/${month}, ${hours}:${minutes}`;
-};
 
 async function closeTokenAccount(
     tokenAccountAddress: PublicKey,

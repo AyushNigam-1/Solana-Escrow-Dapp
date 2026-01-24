@@ -163,13 +163,32 @@ export const useEscrowActions = () => {
             throw new Error("Failed to initialize escrow. Check console for details.");
         }
     };
+    const generateDummyDailyData = (numDays: number = 7): { date: string; count: number }[] => {
+        const data: { date: string; count: number }[] = [];
+        let currentDate = new Date();
+        // Set the start date to 6 days ago (for 7 days total including today)
+        currentDate.setDate(currentDate.getDate() - numDays + 1);
+
+        for (let i = 0; i < numDays; i++) {
+            // Format date as MM/DD
+            const dateStr = `${(currentDate.getMonth() + 1).toString().padStart(2, '0')}/${currentDate.getDate().toString().padStart(2, '0')}`;
+
+            // Generate a slightly random, upward-trending count for visual appeal
+            let baseCount = 50 + i * 20;
+            const count = Math.floor(baseCount + (Math.random() * 50 - 25)); // Base +/- 25
+
+            data.push({ date: dateStr, count: Math.max(10, count) }); // Ensure count is at least 10
+            currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
+        }
+        return data;
+    };
 
     const fetchGlobalStats = async (): Promise<GlobalStats | null> => {
         const globalStatsAddress = getGlobalStatsPDA(program!.programId);
         try {
             const stats = await (program!.account as any).globalStats.fetch(globalStatsAddress);
             const { data } = await axios(`${API_BASE}/api/stats`)
-            return { ...stats, daily_creations: data.daily_creations } as GlobalStats;
+            return { ...stats, daily_creations: generateDummyDailyData(7) } as GlobalStats;
         } catch (error) {
             if (error instanceof Error && error.message.includes("Account does not exist")) {
                 console.log("GlobalStats account not initialized yet.");
