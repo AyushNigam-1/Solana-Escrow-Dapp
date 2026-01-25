@@ -107,85 +107,108 @@ const page = () => {
                         (filteredData?.length != 0) ?
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
-                                    <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                        <TableHeaders columns={headers} />
-                                        <tbody>
-                                            {filteredData!.map((escrow) => {
-                                                return (
-                                                    <tr key={escrow.publicKey.toBase58()} className="border-t-0 border-2  border-white/5">
-                                                        <td className="px-6 py-2">
-                                                            <div className="flex items-end gap-2">
-                                                                <img
-                                                                    src={escrow.tokenA.metadata.image}
-                                                                    className='w-6 rounded-full object-cover'
-                                                                    alt={`${escrow.tokenA.metadata.symbol} icon`}
-                                                                />
-                                                                <p className="text-xl font-semibold text-white">
-                                                                    {numeral(escrow.tokenA.amount).format('0a')}
-                                                                </p>
-                                                                <p className="text-xl text-gray-400">
-                                                                    {escrow.tokenA.metadata.symbol}
-                                                                </p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-2">
-                                                            <div className="flex items-end gap-2 ">
-                                                                <img
-                                                                    src={escrow.tokenB.metadata.image}
-                                                                    className='w-6 rounded-full object-cover'
-                                                                    alt={`${escrow.tokenB.metadata.symbol} icon`}
-                                                                />
-                                                                <p className="text-xl font-semibold text-white ">
-                                                                    {numeral(escrow.tokenB.amount).format('0a')}
-                                                                </p>
-                                                                <p className="text-xl text-gray-400">
-                                                                    {escrow.tokenB.metadata.symbol}
-                                                                </p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-2">
-                                                            <div className="flex items-baseline gap-2">
-                                                                <p className="text-xl text-gray-400 leading-none">
-                                                                    {escrow.account.initializerKey.toString().slice(0, 10)}...
-                                                                </p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {formatExpiry(escrow.account.expiresAt)}
-                                                        </td>
-                                                        <td className="px-6 py-2">
-                                                            <div className='flex gap-4 items-center' >
+                                    <div className="flex bg-white/5 rounded-t-2xl border-x-2 border-t-2 border-white/5">
+                                        {
+                                            headers.map((header, i) => {
+                                                return <div key={i} className="flex-1 px-6  text- py-4.5 font-bold text-lg flex items-center gap-2">
+                                                    {header.icon}
+                                                    {header.title}
+                                                </div>
+                                            })
+                                        }
+                                    </div>
+                                    <div className="border-x-2 border-b-2 border-white/5 rounded-b-2xl overflow-hidden">
+                                        {filteredData!.map((escrow, index) => {
+                                            const isLast = index === filteredData!.length - 1;
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
+                                                        ${isLast ? "rounded-b-2xl" : ""}`}
+                                                // onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
+                                                >
+                                                    <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                        <div className="flex items-end gap-2">
+                                                            <img
+                                                                src={escrow.tokenA.metadata.image}
+                                                                className='w-6 rounded-full object-cover'
+                                                                alt={`${escrow.tokenA.metadata.symbol} icon`}
+                                                            />
+                                                            <p className="text-xl font-semibold text-white">
+                                                                {numeral(escrow.tokenA.amount).format('0a')}
+                                                            </p>
+                                                            <p className="text-xl text-gray-400">
+                                                                {escrow.tokenA.metadata.symbol}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                        <div className="flex items-end gap-2 ">
+                                                            <img
+                                                                src={escrow.tokenB.metadata.image}
+                                                                className='w-6 rounded-full object-cover'
+                                                                alt={`${escrow.tokenB.metadata.symbol} icon`}
+                                                            />
+                                                            <p className="text-xl font-semibold text-white ">
+                                                                {numeral(escrow.tokenB.amount).format('0a')}
+                                                            </p>
+                                                            <p className="text-xl text-gray-400">
+                                                                {escrow.tokenB.metadata.symbol}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                                                        {/* <StatusBadge
+                                                            active={subscriber.autoRenew}
+                                                            label={subscriber.autoRenew ? "Enabled" : "Disabled"}
+                                                        /> */}
+                                                        <div className="flex items-baseline gap-2">
+                                                            <p className="text-xl text-gray-400 leading-none">
+                                                                {escrow.account.initializerKey.toString().slice(0, 10)}...
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                                                        {/* <StatusBadge
+                                                            active={subscriber.active}
+                                                            label={subscriber.active ? "Active" : "Inactive"}
+                                                        /> */}
+                                                        {formatExpiry(escrow.account.expiresAt)}
 
-                                                                {
-                                                                    publicKey?.toString() == escrow.account.initializerKey.toString() ?
-                                                                        <button className='text-red-400 hover:text-red-500 text-lg flex gap-2 p-2 items-center w-full cursor-pointer' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: escrow.account.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <Loader /> :
-                                                                            <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                                            </svg>
-                                                                                Cancel</>}
+                                                    </div>
+                                                    <div className="flex-1 px-6 py-4 text-xl text-gray-400 ">
+                                                        <div className='flex gap-4 items-center' >
+
+                                                            {
+                                                                publicKey?.toString() == escrow.account.initializerKey.toString() ?
+                                                                    <button className='text-red-400 hover:text-red-500 text-lg flex gap-2 p-2 items-center w-full cursor-pointer' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: escrow.account.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <Loader /> :
+                                                                        <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                        </svg>
+                                                                            Cancel</>}
+                                                                    </button>
+                                                                    : <>
+                                                                        <button className='text-violet-400 text-lg hover:text-violet-500 flex gap-2 p-2 items-center w-full cursor-pointer'
+                                                                            onClick={() => exchangeEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerKey: escrow.account.initializerKey, escrowPDA: escrow.publicKey.toString(), depositTokenMint: escrow.tokenA.metadata.mintAddress, receiveTokenMint: escrow.tokenB.metadata.mintAddress }).then(() => toast.success("Successfully Exchanged Tokens"))}
+                                                                        >
+                                                                            {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <Loader /> :
+                                                                                <>
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                                                                        <path fillRule="evenodd" d="M15.97 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H7.5a.75.75 0 0 1 0-1.5h11.69l-3.22-3.22a.75.75 0 0 1 0-1.06Zm-7.94 9a.75.75 0 0 1 0 1.06l-3.22 3.22H16.5a.75.75 0 0 1 0 1.5H4.81l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                                                                                    </svg>
+                                                                                    Exchange
+                                                                                </>}
                                                                         </button>
-                                                                        : <>
-                                                                            <button className='text-violet-400 text-lg hover:text-violet-500 flex gap-2 p-2 items-center w-full cursor-pointer'
-                                                                                onClick={() => exchangeEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerKey: escrow.account.initializerKey, escrowPDA: escrow.publicKey.toString(), depositTokenMint: escrow.tokenA.metadata.mintAddress, receiveTokenMint: escrow.tokenB.metadata.mintAddress }).then(() => toast.success("Successfully Exchanged Tokens"))}
-                                                                            >
-                                                                                {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <Loader /> :
-                                                                                    <>
-                                                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                                                                            <path fillRule="evenodd" d="M15.97 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06l3.22-3.22H7.5a.75.75 0 0 1 0-1.5h11.69l-3.22-3.22a.75.75 0 0 1 0-1.06Zm-7.94 9a.75.75 0 0 1 0 1.06l-3.22 3.22H16.5a.75.75 0 0 1 0 1.5H4.81l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
-                                                                                        </svg>
-                                                                                        Exchange
-                                                                                    </>}
-                                                                            </button>
 
-                                                                        </>
-                                                                }
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
+                                                                    </>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
                                 </div>
                             </>
                             :

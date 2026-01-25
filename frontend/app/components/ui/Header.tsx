@@ -3,7 +3,7 @@ import React from 'react'
 
 const Header: React.FC<HeaderProps> = ({ title, refetch, setSearchQuery, isFetching }) => {
     return (
-        <div className='font-mono'>
+        <div className='font-mono space-y-4'>
             <div className='flex justify-between' >
                 <h2 className='text-3xl font-bold'>{title}</h2>
                 <div className='flex gap-3'>
@@ -29,6 +29,8 @@ const Header: React.FC<HeaderProps> = ({ title, refetch, setSearchQuery, isFetch
                     </button>
                 </div>
             </div>
+            <hr className="border-t-2 border-white/5" />
+
         </div>
     )
 }

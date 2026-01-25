@@ -376,18 +376,16 @@ pub struct GlobalStats {
     pub total_value_released: u64,
     pub bump: u8,
 }
-
 #[derive(Accounts)]
 pub struct InitializeGlobalStats<'info> {
     #[account(mut)]
-    pub admin: Signer<'info>,  // payer and initializer
-
+    pub admin: Signer<'info>,  
     #[account(
         init,
         seeds = [b"global-stats"],
         bump,
         payer = admin,
-        space = 8 + 8*5 + 1, // account discriminator + fields
+        space = 8 + 8*5 + 1, 
     )]
     pub global_stats: Account<'info, GlobalStats>,
 

@@ -100,49 +100,60 @@ const page = () => {
           <Loader />
         ) :
           isError ? <Error refetch={refetch} /> : filteredData?.length != 0 ? <div className="relative overflow-x-auto shadow-xs rounded-lg">
-            <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-              <TableHeaders columns={headers} />
-              <tbody>
-                {filteredData?.map((token) => {
-                  return (
-                    <tr key={token.mint} className="border-t-0 border-2  border-white/5">
-                      <td className="px-6 py-4 ">
-                        <div className="flex items-end gap-2">
-                          <img
-                            src={token.image}
-                            className='w-6 rounded-full object-cover'
-                          />
-                          <p className="text-xl font-semibold text-white line-clamp-1">
-                            {token.name}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-xl text-gray-400">
-                        {token.amount}
-                      </td>
-                      <td className="px-6 py-4 text-xl text-gray-400 leading-none">
-                        {token.mint.toString().slice(0, 12)}...
-                      </td>
-                      <td className="px-6 py-4 text-xl text-gray-400 leading-none">
-                        {token.tokenAddress.toString().slice(0, 12)}...
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-6 items-center">
-                          <button className='text-lg text-violet-400 hover:text-violet-500 flex gap-2 cursor-pointer items-center justify-center' onClick={() => { setOpen(true); setMintAddress(token.mint) }} >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                            </svg>
-                            Create Deal
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
+            <div className="flex bg-white/5 rounded-t-2xl border-x-2 border-t-2 border-white/5">
+              {
+                headers.map((header, i) => {
+                  return <div key={i} className="flex-1 px-6  text- py-4.5 font-bold text-lg flex items-center gap-2">
+                    {header.icon}
+                    {header.title}
+                  </div>
                 })
-
-                }
-              </tbody>
-            </table>
+              }
+            </div>
+            <div className="border-x-2 border-b-2 border-white/5 rounded-b-2xl overflow-hidden">
+              {filteredData!.map((token, index) => {
+                const isLast = index === filteredData!.length - 1;
+                return (
+                  <div
+                    key={index}
+                    className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
+                                                        ${isLast ? "rounded-b-2xl" : ""}`}
+                  // onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
+                  >
+                    <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                      <div className="flex items-end gap-2">
+                        <img
+                          src={token.image}
+                          className='w-6 rounded-full object-cover'
+                        />
+                        <p className="text-xl font-semibold text-white line-clamp-1">
+                          {token.name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                      {token.amount}
+                    </div>
+                    <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                      {token.mint.toString().slice(0, 12)}...
+                    </div>
+                    <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                      {token.tokenAddress.toString().slice(0, 12)}...
+                    </div>
+                    <div className="flex-1 px-6 py-4 text-xl text-gray-400 ">
+                      <div className="flex gap-6 items-center">
+                        <button className='text-lg text-violet-400 hover:text-violet-500 flex gap-2 cursor-pointer items-center justify-center' onClick={() => { setOpen(true); setMintAddress(token.mint) }} >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                          </svg>
+                          Create Deal
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div> : !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl'>No tokens available.</p>
         }
         {filteredData?.length === 0 && searchQuery && (
