@@ -6,10 +6,11 @@ import Header from '@/app/components/ui/Header';
 import Loader from '@/app/components/ui/Loader';
 import TableHeaders from '@/app/components/ui/TableHeaders';
 import { useQuery } from '@tanstack/react-query';
-import { fetchUserTokenAccounts } from '@/app/utils/token';
+import { fetchUserTokenAccounts, truncateAddress } from '@/app/utils/token';
 import { PublicKey } from '@solana/web3.js';
 import { Slide, ToastContainer } from 'react-toastify';
 import Error from '@/app/components/ui/Error';
+import numeral from 'numeral';
 
 const page = () => {
   const [mintAddress, setMintAddress] = useState<string>("")
@@ -116,7 +117,7 @@ const page = () => {
                 return (
                   <div
                     key={index}
-                    className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
+                    className={`flex items-center transition border-t border-white/5 
                                                         ${isLast ? "rounded-b-2xl" : ""}`}
                   // onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
                   >
@@ -132,13 +133,13 @@ const page = () => {
                       </div>
                     </div>
                     <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
-                      {token.amount}
+                      {numeral(token.amount).format("0a")}
                     </div>
-                    <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
-                      {token.mint.toString().slice(0, 12)}...
+                    <div className="flex-1 px-6 py-4 text-lg text-gray-300 flex items-end gap-2">
+                      {truncateAddress(token.mint)}
                     </div>
-                    <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
-                      {token.tokenAddress.toString().slice(0, 12)}...
+                    <div className="flex-1 px-6 py-4 text-lg text-gray-300 flex items-end gap-2">
+                      {truncateAddress(token.tokenAddress)}
                     </div>
                     <div className="flex-1 px-6 py-4 text-xl text-gray-400 ">
                       <div className="flex gap-6 items-center">

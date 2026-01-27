@@ -68,7 +68,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                             leaveFrom="opacity-100 scale-100 translate-y-0"
                             leaveTo="opacity-0 scale-90 translate-y-12"
                         >
-                            <DialogPanel className="w-full max-w-xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl border border-gray-800 transition-all font-inter text-white relative p-6 space-y-4">
+                            <DialogPanel className="w-full max-w-xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl transition-all font-inter text-white relative p-6 space-y-4">
 
                                 {/* <div
                                     className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-gray-900/50 transition-opacity duration-300"
@@ -95,8 +95,8 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                                         createEscrow.mutateAsync({ ...formData, initializerDepositMint: initializerDepositMint || formData.initializerDepositMint }).then(() => { handleClose(); toast.success("Successfully Created Deal") });
                                     }} className=" space-y-6">
                                         <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={(initializerDepositMint || formData.initializerDepositMint)!} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled />
-                                        <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isMutating} />
                                         <InputGroup label="Token B Mint Address" name="takerExpectedMint" value={formData.takerExpectedMint} onChange={handleChange} placeholder="Base58 Mint Address (Token B)" disabled={isMutating || !!data} />
+                                        <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isMutating} />
                                         <InputGroup label="Expected Amount (Token B)" name="takerExpectedAmount" type="number" value={formData.takerExpectedAmount} onChange={handleChange} placeholder="e.g., 10" disabled={isMutating} />
                                         <div className="flex gap-3 items-end">
                                             <InputGroup
@@ -112,7 +112,7 @@ export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClos
                                                 name="durationUnit"
                                                 value={formData.durationUnit}
                                                 onChange={handleChange}
-                                                className="max-w-max px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition appearance-none"
+                                                className="max-w-max  appearance-none w-full px-4 py-2 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-white/5 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-white/8 transition"
                                                 required
                                                 disabled={isMutating}
                                             >
@@ -187,7 +187,7 @@ const InputGroup: React.FC<{
     disabled: boolean;
 }> = ({ label, name, value, onChange, placeholder, type = 'text', disabled }) => (
     <div className='w-full '>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor={name} className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
             {label}
         </label>
         <input
@@ -199,7 +199,7 @@ const InputGroup: React.FC<{
             onChange={onChange}
             placeholder={placeholder}
             disabled={disabled}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition"
+            className="w-full px-4 py-2 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-white/5 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-white/8 transition"
         />
     </div>
 );

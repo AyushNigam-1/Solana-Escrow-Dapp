@@ -263,3 +263,8 @@ export async function fetchUserTokenAccounts(
     console.log("inside fetch acc", userAccounts)
     return userAccounts;
 }
+
+export const truncateAddress = (addr: string | PublicKey) => {
+    if (!addr) return "Unknown";
+    return `${addr.toString().slice(0, 4)}...${addr.toString().slice(-4)}`;
+}

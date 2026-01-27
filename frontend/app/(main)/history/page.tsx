@@ -10,6 +10,7 @@ import { useProgram } from '@/app/hooks/useProgram';
 import { Escrow } from '@/app/types/query';
 import { formatExpiry } from '@/app/utils/duration';
 import { useQuery } from '@tanstack/react-query';
+import { RefreshCcw } from 'lucide-react';
 import numeral from 'numeral';
 import React, { useMemo, useState } from 'react'
 import { Slide, toast, ToastContainer } from 'react-toastify';
@@ -112,7 +113,7 @@ const page = () => {
                     isError ? <Error refetch={refetch} /> :
                         filteredData?.length != 0 ?
                             <div className="relative overflow-x-auto shadow-xs rounded-lg ">
-                                <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
+                                {/* <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
                                     <TableHeaders columns={headers} />
                                     <tbody>
                                         {filteredData?.map((escrow) => {
@@ -183,7 +184,87 @@ const page = () => {
                                             )
                                         })}
                                     </tbody>
-                                </table>
+                                </table> */}
+                                <div className="flex bg-white/5 rounded-t-2xl border-x-2 border-t-2 border-white/5">
+                                    {
+                                        headers.map((header, i) => {
+                                            return <div key={i} className="flex-1 px-6  text- py-4.5 font-bold text-lg flex items-center gap-2">
+                                                {header.icon}
+                                                {header.title}
+                                            </div>
+                                        })
+                                    }
+                                </div>
+                                <div className="border-x-2 border-b-2 border-white/5 rounded-b-2xl overflow-hidden">
+                                    {filteredData?.map((escrow, index) => {
+                                        const isLast = index === filteredData!.length - 1;
+                                        return (
+                                            <div
+                                                key={index}
+                                                className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
+                                                        ${isLast ? "rounded-b-2xl" : ""}`}
+                                            // onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
+                                            >
+                                                <div className="flex-1 px-6 py-2 text-xl font-semibold text-white">
+                                                    <div className="flex items-end gap-2">
+                                                        <img
+                                                            src={escrow.tokenA.metadata.image}
+                                                            className='w-6 rounded-full object-cover'
+                                                            alt={`${escrow.tokenA.metadata.symbol} icon`}
+                                                        />
+                                                        <p className="text-xl font-semibold text-white">
+                                                            {numeral(escrow.tokenA.amount).format('0a')}
+                                                        </p>
+                                                        <p className="text-xl text-gray-400">
+                                                            {escrow.tokenA.metadata.symbol}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 px-6 py-2 text-xl font-semibold text-white">
+                                                    <div className="flex items-end gap-2 ">
+                                                        <img
+                                                            src={escrow.tokenB.metadata.image}
+                                                            className='w-6 rounded-full object-cover'
+                                                            alt={`${escrow.tokenB.metadata.symbol} icon`}
+                                                        />
+                                                        <p className="text-xl font-semibold text-white ">
+                                                            {numeral(escrow.tokenB.amount).format('0a')}
+                                                        </p>
+                                                        <p className="text-xl text-gray-400">
+                                                            {escrow.tokenB.metadata.symbol}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 px-6 py-2 text-xl text-gray-400 flex items-end gap-2">
+                                                    {formatExpiry(escrow.account.expiresAt)}
+                                                </div>
+                                                <div className="flex-1 px-6 py-2 text-xl text-gray-400 ">
+                                                    {escrow.status}
+                                                </div>
+                                                <div className="flex-1 px-6 py-2 text-xl text-gray-400 ">
+
+                                                    <div className='flex gap-4 items-center' >
+
+                                                        {
+                                                            escrow.status == "Pending" ?
+                                                                <button className='hover:text-red-500 text-red-400 items-center rounded-lg flex gap-2 text-lg w-full cursor-pointer p-2' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: (escrow.account.initializerDepositTokenAccount as string), tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}> {(pendingId == escrow.account.uniqueSeed.toString() && isMutating) ? <Loader /> : <><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                                </svg>
+                                                                    Cancel</>} </button>
+                                                                : <>
+                                                                    <button className="hover:text-violet-500 text-violet-400 rounded-lg cursor-pointer flex gap-2 items-center w-full text-lg p-2" onClick={() => { setEscrow(escrow); setOpen(true) }}
+                                                                    >
+
+                                                                        <RefreshCcw size={20} /> Re-Create
+                                                                    </button>
+                                                                </>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div> : !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl'>No history available.</p>
                 }
                 {filteredData?.length === 0 && searchQuery && (

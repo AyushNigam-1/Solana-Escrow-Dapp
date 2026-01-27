@@ -13,6 +13,7 @@ import TableHeaders from '@/app/components/ui/TableHeaders';
 import { formatExpiry } from '@/app/utils/duration';
 import { Slide, toast, ToastContainer } from 'react-toastify';
 import Error from '@/app/components/ui/Error';
+import { truncateAddress } from '@/app/utils/token';
 
 const page = () => {
 
@@ -127,7 +128,7 @@ const page = () => {
                                                         ${isLast ? "rounded-b-2xl" : ""}`}
                                                 // onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
                                                 >
-                                                    <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                    <div className="flex-1 px-6 py-2 text-xl font-semibold text-white">
                                                         <div className="flex items-end gap-2">
                                                             <img
                                                                 src={escrow.tokenA.metadata.image}
@@ -142,7 +143,7 @@ const page = () => {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                    <div className="flex-1 px-6 py-2 text-xl font-semibold text-white">
                                                         <div className="flex items-end gap-2 ">
                                                             <img
                                                                 src={escrow.tokenB.metadata.image}
@@ -157,18 +158,18 @@ const page = () => {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                                                    <div className="flex-1 px-6 py-2  text-gray-400 flex items-end gap-2">
                                                         {/* <StatusBadge
                                                             active={subscriber.autoRenew}
                                                             label={subscriber.autoRenew ? "Enabled" : "Disabled"}
                                                         /> */}
                                                         <div className="flex items-baseline gap-2">
                                                             <p className="text-xl text-gray-400 leading-none">
-                                                                {escrow.account.initializerKey.toString().slice(0, 10)}...
+                                                                {truncateAddress(escrow.account.initializerKey)}
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                                                    <div className="flex-1 px-6 py-2 text-xl text-gray-400 flex items-end gap-2">
                                                         {/* <StatusBadge
                                                             active={subscriber.active}
                                                             label={subscriber.active ? "Active" : "Inactive"}
@@ -176,7 +177,7 @@ const page = () => {
                                                         {formatExpiry(escrow.account.expiresAt)}
 
                                                     </div>
-                                                    <div className="flex-1 px-6 py-4 text-xl text-gray-400 ">
+                                                    <div className="flex-1 px-6 py-2 text-xl text-gray-400 ">
                                                         <div className='flex gap-4 items-center' >
 
                                                             {
