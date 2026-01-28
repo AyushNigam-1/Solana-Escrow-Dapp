@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useEscrowActions } from '@/app/hooks/useEscrowActions';
 import { useQuery } from '@tanstack/react-query';
 import { useProgram } from '@/app/hooks/useProgram';
@@ -14,6 +14,8 @@ import { formatExpiry } from '@/app/utils/duration';
 import { Slide, toast, ToastContainer } from 'react-toastify';
 import Error from '@/app/components/ui/Error';
 import { truncateAddress } from '@/app/utils/token';
+import EscrowDetails from '@/app/components/ui/EscrowDetails';
+import { useSearchParams } from 'next/navigation';
 
 const page = () => {
 
@@ -22,6 +24,8 @@ const page = () => {
     const { publicKey } = useProgram()
     const contractActions = useEscrowActions();
     const [searchQuery, setSearchQuery] = useState<string | null>("")
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [selectedDeal, setSelectedDeal] = useState<Escrow>();
 
     const {
         data,
@@ -34,6 +38,7 @@ const page = () => {
         queryFn: () => contractActions.fetchAllEscrows(),
         staleTime: 1000 * 3000,
     });
+    console.log(data)
 
     const filteredData = useMemo(() => {
         if (!searchQuery) {
@@ -95,7 +100,23 @@ const page = () => {
             title: "Action"
         }
     ]
+    const searchParams = useSearchParams();
+    useEffect(() => {
+        // Ensure data is loaded and searchParams exists
+        if (data && searchParams) {
+            // Get the value of the 'escrow' parameter (e.g. ?escrow=255r...)
+            const urlPubKey = searchParams.get('escrow');
 
+            if (urlPubKey) {
+                const targetDeal = data.find(e => e.publicKey.toString() === urlPubKey);
+
+                if (targetDeal) {
+                    setSelectedDeal(targetDeal);
+                    setIsShareModalOpen(true);
+                }
+            }
+        }
+    }, [data, searchParams]);
 
     return (
         <div className='flex flex-col gap-4 font-mono' >
@@ -124,6 +145,7 @@ const page = () => {
                                             return (
                                                 <div
                                                     key={index}
+                                                    onClick={() => { setSelectedDeal(escrow); setIsShareModalOpen(true) }}
                                                     className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
                                                         ${isLast ? "rounded-b-2xl" : ""}`}
                                                 // onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
@@ -221,6 +243,13 @@ const page = () => {
                     </div>
                 )}
             </div>
+            {selectedDeal && (
+                <EscrowDetails
+                    isOpen={isShareModalOpen}
+                    closeModal={() => setIsShareModalOpen(false)}
+                    escrow={selectedDeal}
+                />
+            )}
             <ToastContainer position="top-center" transition={Slide} theme='dark' />
         </div>
     )
