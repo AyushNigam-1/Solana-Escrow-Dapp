@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react'
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react'
-import { ArrowLeftRight, ArrowRightIcon, CheckIcon, Clock, LinkIcon, User } from 'lucide-react';
+import { ArrowLeftRight, ArrowRightIcon, CheckIcon, Clock, LinkIcon, Share, Share2, User } from 'lucide-react';
 import { Escrow } from '@/app/types/query';
 import InputGroup from './InputGroup';
 import { truncateAddress } from '@/app/utils/token';
@@ -134,7 +134,7 @@ export default function EscrowDetails({ isOpen, closeModal, escrow }: ShareDealM
                                         </div> */}
                                     </div>
                                 </div>
-                                <div className='flex gap-2' >
+                                <div className='flex gap-4' >
                                     <div className='flex flex-col gap-1 bg-white/5 p-3 rounded-xl w-full'>
                                         <h6 className='text-gray-400 text-center items-center justify-center flex gap-1'> <User className='w-4' /> Creator</h6>
                                         <p className='text-lg font-semibold text-center'>{truncateAddress(escrow.account.initializerKey)}</p>
@@ -146,27 +146,13 @@ export default function EscrowDetails({ isOpen, closeModal, escrow }: ShareDealM
                                         </p>
                                     </div>
                                 </div>
-                                <div className='flex gap-2' >
-                                    <InputGroup disabled={true} value={`${window.location.origin}/escrows?${escrow.publicKey}`} label='Shareable Link' />
-                                    {/* <button
-                                        onClick={handleCopyLink}
-                                        className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-all duration-200 ${copied
-                                            ? 'bg-green-500/10 text-green-400 border border-green-500/50'
-                                            : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20'
-                                            }`}
-                                    >
-                                        {copied ? (
-                                            <>
-                                                <CheckIcon className="h-5 w-5" />
-                                                <span>Copied</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <LinkIcon className="h-5 w-5" />
-                                                <span>Copy</span>
-                                            </>
-                                        )}
-                                    </button> */}
+                                <div className='flex flex-col gap-2 bg-white/5 p-3 rounded-xl w-full'>
+                                    <h6 className='text-gray-400 text-center items-center justify-center flex gap-2'> <Share2 className='w-4' /> Shareable Link</h6>
+                                    <div className='font-semibold click-pointer hover:text-purple-400' title="Click To Copy">
+                                        <p className='text-lg w-full text-center'>
+                                            {window.location.origin}/escrows={escrow.publicKey.toString().slice(0, 6)}...
+                                        </p>
+                                    </div>
                                 </div>
                                 <hr className="border-t-2 border-white/5" />
                                 <button className='text-red-400 bg-red-400/20 rounded-lg  hover:text-red-500 text-lg flex gap-2 p-2 items-center w-full cursor-pointer justify-center' onClick={() => cancelEscrow.mutateAsync({ uniqueSeed: escrow.account.uniqueSeed.toString(), initializerDepositTokenAccount: escrow.account.initializerDepositTokenAccount, tokenAMintAddress: escrow.tokenA.metadata.mintAddress, escrowPda: escrow.publicKey }).then(() => toast.success("Successfully Cancelled Deal"))}>
